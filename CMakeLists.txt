@@ -37,7 +37,8 @@ add_library(aurora STATIC
     lib/dolphin/GXTransform.cpp
     lib/dolphin/GXVert.cpp
     lib/dolphin/vi.cpp
-    )
+    lib/xr.cpp
+        include/aurora/xr/log.hpp)
 add_library(aurora::aurora ALIAS aurora)
 target_compile_definitions(aurora PUBLIC AURORA TARGET_PC)
 if (AURORA_NATIVE_MATRIX)
