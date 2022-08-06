@@ -49,6 +49,7 @@ typedef struct {
   uint32_t msaa;
   uint16_t maxTextureAnisotropy;
   bool startFullscreen;
+  bool startOpenXR;
   uint32_t windowWidth;
   uint32_t windowHeight;
   void* iconRGBA8;

@@ -11,3 +11,6 @@
 [submodule "extern/fmt"]
 	path = extern/fmt
 	url = https://github.com/fmtlib/fmt.git
+[submodule "extern/openxr"]
+	path = extern/openxr
+	url = https://github.com/KhronosGroup/OpenXR-SDK.git
