@@ -3,7 +3,7 @@
 #include <dawn/native/DawnNative.h>
 #include <webgpu/webgpu_cpp.h>
 #include <openxr/openxr.h>
-#include "aurora/xr/openxr_platform.hpp"
+#include "..//xr/openxr_platform.hpp"
 #include <optional>
 
 struct SDL_Window;
@@ -19,7 +19,7 @@ public:
 
   virtual std::optional<XrStructureType> XrGetGraphicsBindingType() const = 0;
   virtual std::vector<std::string> XrGetInstanceExtensions() const = 0;
-  virtual void XrInitializeDevice() = 0;
+  virtual void XrInitializeDevice(XrInstance instance, XrSystemId systemId) = 0;
 
   const XrBaseInStructure* GetGraphicsBinding() const {
     return reinterpret_cast<const XrBaseInStructure*>(&m_xrGraphicsBinding);

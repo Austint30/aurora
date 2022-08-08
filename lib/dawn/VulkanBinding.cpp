@@ -2,8 +2,9 @@
 
 #include "../internal.hpp"
 #include "../webgpu/gpu.hpp"
-#include <aurora/xr/openxr_platform.hpp>
-#include <aurora/xr/common.h>
+#include "../xr/openxr_platform.hpp"
+#include "../xr/common.h"
+#include "../xr/XrVulkanFunctions.hpp"
 #include <iostream>
 
 #include <SDL_vulkan.h>
@@ -72,7 +73,7 @@ static std::string vkResultString(VkResult res) {
 }
 
 inline void ThrowVkResult(VkResult res, const char* originator = nullptr, const char* sourceLocation = nullptr) {
-  xr::aurora::xr::Throw(xr::Fmt("VkResult failure [%s]", vkResultString(res).c_str()), originator, sourceLocation);
+  xr::Throw(xr::Fmt("VkResult failure [%s]", vkResultString(res).c_str()), originator, sourceLocation);
 }
 
 inline VkResult CheckVkResult(VkResult res, const char* originator = nullptr, const char* sourceLocation = nullptr) {
@@ -134,21 +135,34 @@ public:
 
     return nullptr;
   }
-  void XrInitializeDevice() override {
+  void XrInitializeDevice(XrInstance instance, XrSystemId systemId) override {
+
+    m_xrVulkanFunctions.LoadInstanceProcs(instance);
 
     VkInstance vkInstance = dawn::native::vulkan::GetInstance(m_device);
 
     VkDevice device = reinterpret_cast<VkDevice>(g_device.Get());
 
-    PFN_vkEnumeratePhysicalDevices pfnVkEnumeratePhysicalDevices = reinterpret_cast<PFN_vkEnumeratePhysicalDevices>(
-        dawn::native::vulkan::GetInstanceProcAddr(m_device, "vkEnumeratePhysicalDevices"));
+    XrVulkanGraphicsDeviceGetInfoKHR deviceGetInfo{XR_TYPE_VULKAN_GRAPHICS_DEVICE_GET_INFO_KHR};
+    deviceGetInfo.systemId = systemId;
+    deviceGetInfo.vulkanInstance = vkInstance;
 
-//    pfnVkEnumeratePhysicalDevices();
+    xr::CHECK_XRCMD(m_xrVulkanFunctions.GetVulkanGraphicsDevice2KHR(instance, &deviceGetInfo, &m_vkPhysicalDevice));
 
     m_xrGraphicsBinding.instance = vkInstance;
     m_xrGraphicsBinding.device = device;
+    m_xrGraphicsBinding.physicalDevice = m_vkPhysicalDevice;
 
   }
+
+//  virtual XrResult GetVulkanGraphicsDevice2KHR(XrInstance instance, const XrVulkanGraphicsDeviceGetInfoKHR* getInfo,
+//                                               VkPhysicalDevice* vulkanPhysicalDevice) {
+//    PFN_xrGetVulkanGraphicsDevice2KHR pfnGetVulkanGraphicsDevice2KHR = nullptr;
+//    xr::CHECK_XRCMD(xrGetInstanceProcAddr(instance, "xrGetVulkanGraphicsDevice2KHR",
+//                                      reinterpret_cast<PFN_xrVoidFunction*>(&pfnGetVulkanGraphicsDevice2KHR)));
+//
+//    return pfnGetVulkanGraphicsDevice2KHR(instance, getInfo, vulkanPhysicalDevice);
+//  }
   /*
     void XrInitializeDevice(XrInstance instance, XrSystemId systemId) override {
 
@@ -248,7 +262,8 @@ public:
   */
 private:
   DawnSwapChainImplementation m_swapChainImpl{};
-  std::vector<VkPhysicalDevice> m_gpus;
+  VkPhysicalDevice m_vkPhysicalDevice{VK_NULL_HANDLE};
+  xr::XrVulkanFunctions m_xrVulkanFunctions;
 
   void CreateSwapChainImpl() {
     VkSurfaceKHR surface = VK_NULL_HANDLE;

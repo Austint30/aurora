@@ -2,7 +2,7 @@
 // Created by austin on 1/30/22.
 // Derived from https://github.com/KhronosGroup/OpenXR-SDK-Source/blob/master/src/tests/hello_xr/openxr_program.cpp
 //
-#include "aurora/xr/xr.hpp"
+#include "xr.hpp"
 #include <cmath>
 
 namespace aurora::xr {
@@ -104,7 +104,7 @@ OpenXRSessionManager::OpenXRSessionManager(const OpenXROptions options)
   m_views.resize(2, {XR_TYPE_VIEW});
 }
 
-bool OpenXRSessionManager::createInstance() {
+bool OpenXRSessionManager::createInstance(webgpu::utils::BackendBinding& backendBinding) {
   LogLayersAndExtensions();
 
   CHECK(m_instance == XR_NULL_HANDLE);
@@ -113,13 +113,14 @@ bool OpenXRSessionManager::createInstance() {
   std::vector<const char*> extensions;
 
   // Transform platform and graphics extension std::strings to C strings.
-//  std::transform(graphicsExtensions.begin(), graphicsExtensions.end(), std::back_inserter(extensions),
-//                 [](const std::string& ext) { return ext.c_str(); });
+  const std::vector<std::string> graphicsExtensions = backendBinding.XrGetInstanceExtensions();
+  std::transform(graphicsExtensions.begin(), graphicsExtensions.end(), std::back_inserter(extensions),
+                 [](const std::string& ext) { return ext.c_str(); });
 
   XrInstanceCreateInfo createInfo{XR_TYPE_INSTANCE_CREATE_INFO};
   //  createInfo.next = m_application->GetInstanceCreateExtension();
-//  createInfo.enabledExtensionCount = (uint32_t)extensions.size();
-//  createInfo.enabledExtensionNames = extensions.data();
+  createInfo.enabledExtensionCount = (uint32_t)extensions.size();
+  createInfo.enabledExtensionNames = extensions.data();
 
   strcpy(createInfo.applicationInfo.applicationName, m_options.AppName.c_str());
   createInfo.applicationInfo.apiVersion = XR_CURRENT_API_VERSION;
@@ -156,13 +157,15 @@ void OpenXRSessionManager::initializeSystem() {
   //  m_graphicsPlugin->InitializeDevice(m_instance, m_systemId);
 }
 
-void OpenXRSessionManager::initializeSession(const XrBaseInStructure* graphicsBinding) {
+void OpenXRSessionManager::initializeSession(webgpu::utils::BackendBinding& backendBinding) {
   CHECK(m_instance != XR_NULL_HANDLE);
   CHECK(m_session == XR_NULL_HANDLE);
 
   {
     Log.report(LOG_INFO, FMT_STRING("Creating session..."));
 
+    backendBinding.XrInitializeDevice(m_instance, m_systemId);
+    XrBaseInStructure* graphicsBinding = const_cast<XrBaseInStructure*>(backendBinding.GetGraphicsBinding());
     XrSessionCreateInfo createInfo{XR_TYPE_SESSION_CREATE_INFO};
     createInfo.next = graphicsBinding;
     createInfo.systemId = m_systemId;

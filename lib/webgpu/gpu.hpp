@@ -4,6 +4,7 @@
 #include <openxr/openxr.h>
 
 #include "wgpu.hpp"
+#include "../dawn/BackendBinding.hpp"
 
 #include <array>
 #include <cstdint>
@@ -38,7 +39,7 @@ extern wgpu::BindGroup g_CopyBindGroup;
 extern wgpu::Instance g_instance;
 
 bool initialize(AuroraBackend backend);
-void initialize_openxr(const XrBaseInStructure* graphicsBinding);
+void initialize_openxr(utils::BackendBinding& backendBinding);
 void shutdown();
 void resize_swapchain(uint32_t width, uint32_t height, bool force = false);
 TextureWithSampler create_render_texture(bool multisampled);

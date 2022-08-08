@@ -96,5 +96,5 @@ template <typename T, size_t Size>
 constexpr size_t ArraySize(const T (&/*unused*/)[Size]) noexcept {
   return Size;
 }
-#include "aurora/xr/check.h"
 }
+#include "check.h"

@@ -10,7 +10,7 @@
 #include <memory>
 #include <algorithm>
 
-#include "aurora/xr/xr.hpp"
+#include "../xr/xr.hpp"
 
 #ifdef WEBGPU_DAWN
 #include <dawn/native/DawnNative.h>
@@ -500,8 +500,7 @@ bool initialize(AuroraBackend auroraBackend) {
 
   if (g_config.startOpenXR) {
     Log.report(LOG_INFO, FMT_STRING("Enabling OpenXR support"));
-    g_backendBinding->XrInitializeDevice();
-    initialize_openxr(g_backendBinding->GetGraphicsBinding());
+    initialize_openxr(*g_backendBinding);
   }
 
   auto swapChainFormat = static_cast<wgpu::TextureFormat>(g_backendBinding->GetPreferredSwapChainTextureFormat());
@@ -536,13 +535,13 @@ bool initialize(AuroraBackend auroraBackend) {
   return true;
 }
 
-void initialize_openxr(const XrBaseInStructure* graphicsBinding){
+void initialize_openxr(utils::BackendBinding& backendBinding){
   xr::OpenXROptions options;
   std::shared_ptr<xr::OpenXRSessionManager> sesMgr = xr::InstantiateOXRSessionManager(options);
 
-  sesMgr->createInstance();
+  sesMgr->createInstance(backendBinding);
   sesMgr->initializeSystem();
-  sesMgr->initializeSession(graphicsBinding);
+  sesMgr->initializeSession(backendBinding);
 }
 
 void shutdown() {

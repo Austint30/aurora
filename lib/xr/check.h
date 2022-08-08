@@ -5,7 +5,7 @@
 #pragma once
 
 #include "common.h"
-#include "../../../lib/internal.hpp"
+#include "../internal.hpp"
 
 #define CHK_STRINGIFY(x) #x
 #define TOSTRING(x) CHK_STRINGIFY(x)

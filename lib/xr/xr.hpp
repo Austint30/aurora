@@ -8,9 +8,9 @@
 #include <memory>
 #include <vector>
 
-#include "aurora/xr/OpenXROptions.h"
-#include "aurora/xr/check.h"
-#include "../../../lib/dawn/BackendBinding.hpp"
+#include "OpenXROptions.h"
+#include "check.h"
+#include "../dawn/BackendBinding.hpp"
 #include "log.hpp"
 
 namespace aurora::xr {
@@ -34,14 +34,14 @@ public:
   std::vector<XrView> GetViews();
 
   // Create an Instance and other basic instance-level initialization.
-  bool createInstance();
+  bool createInstance(webgpu::utils::BackendBinding& backendBinding);
 
   //  // Select a System for the view configuration specified in the Options and initialize the graphics device for the
   //  // selected system.
   void initializeSystem();
   //
   // Create a Session and other basic session-level initialization.
-  void initializeSession(const XrBaseInStructure* graphicsBinding);
+  void initializeSession(webgpu::utils::BackendBinding& backendBinding);
 
   //  // Create a Swapchain which requires coordinating with the graphics plugin to select the format, getting the system
   //  // graphics properties, getting the view configuration and grabbing the resulting swapchain images.
@@ -181,11 +181,11 @@ public:
         for (uint32_t i = 0; i < views.size(); i++) {
           const XrViewConfigurationView& view = views[i];
 
-          Log.report(LOG_INFO, FMT_STRING("    View [{}]: Recommended Width=%d Height=%d SampleCount={}"), i,
+          Log.report(LOG_INFO, FMT_STRING("    View [{}]: Recommended Width={} Height={} SampleCount={}"), i,
                      view.recommendedImageRectWidth, view.recommendedImageRectHeight,
                      view.recommendedSwapchainSampleCount);
           Log.report(LOG_INFO,
-                     FMT_STRING("    View [{}]:     Maximum Width=%d Height=%d SampleCount={}"), i, view.maxImageRectWidth,
+                     FMT_STRING("    View [{}]:     Maximum Width={} Height={} SampleCount={}"), i, view.maxImageRectWidth,
                      view.maxImageRectHeight, view.maxSwapchainSampleCount);
         }
       } else {

@@ -2,7 +2,7 @@
 
 #include <SDL_video.h>
 #include <dawn/native/OpenGLBackend.h>
-#include <aurora/xr/openxr_platform.hpp>
+#include "../xr/openxr_platform.hpp"
 
 namespace aurora::webgpu::utils {
 class OpenGLBinding : public BackendBinding {
@@ -37,7 +37,7 @@ public:
   }
   std::vector<std::string> XrGetInstanceExtensions() const override { return {XR_KHR_OPENGL_ENABLE_EXTENSION_NAME}; };
 
-  void XrInitializeDevice() override {
+  void XrInitializeDevice(XrInstance instance, XrSystemId systemId) override {
 
   };
 

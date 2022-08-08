@@ -21,7 +21,7 @@ public:
   std::optional<XrStructureType> XrGetGraphicsBindingType() const override { return std::nullopt; }
   std::vector<std::string> XrGetInstanceExtensions() const override { return {}; };
 
-  void XrInitializeDevice() override {
+  void XrInitializeDevice(XrInstance instance, XrSystemId systemId) override {
 
   };
 
