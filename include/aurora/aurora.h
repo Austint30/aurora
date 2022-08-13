@@ -2,12 +2,14 @@
 #define AURORA_AURORA_H
 
 #ifdef __cplusplus
+#include <cstddef>
 #include <cstdint>
 
 extern "C" {
 #else
-#include "stdint.h"
 #include "stdbool.h"
+#include "stddef.h"
+#include "stdint.h"
 #endif
 
 typedef enum {
@@ -37,6 +39,7 @@ typedef struct {
   float scale;
 } AuroraWindowSize;
 
+typedef struct SDL_Window SDL_Window;
 typedef struct AuroraEvent AuroraEvent;
 
 typedef void (*AuroraLogCallback)(AuroraLogLevel level, const char* message, unsigned int len);
@@ -62,6 +65,7 @@ typedef struct {
 typedef struct {
   AuroraBackend backend;
   const char* configPath;
+  SDL_Window* window;
   AuroraWindowSize windowSize;
 } AuroraInfo;
 
@@ -70,6 +74,9 @@ void aurora_shutdown();
 const AuroraEvent* aurora_update();
 bool aurora_begin_frame();
 void aurora_end_frame();
+
+AuroraBackend aurora_get_backend();
+const AuroraBackend* aurora_get_available_backends(size_t* count);
 
 #ifndef NDEBUG
 #define AURORA_GFX_DEBUG_GROUPS

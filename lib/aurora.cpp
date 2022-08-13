@@ -87,17 +87,11 @@ static AuroraInfo initialize(int argc, char* argv[], const AuroraConfig& config)
     }
   }
 
-  if (!windowCreated) {
-    Log.report(LOG_FATAL, FMT_STRING("Error creating window: {}"), SDL_GetError());
-    unreachable();
-  }
+  ASSERT(windowCreated, "Error creating window: {}", SDL_GetError());
 
   // Initialize SDL_Renderer for ImGui when we can't use a Dawn backend
   if (webgpu::g_backendType == wgpu::BackendType::Null) {
-    if (!window::create_renderer()) {
-      Log.report(LOG_FATAL, FMT_STRING("Failed to initialize SDL renderer: {}"), SDL_GetError());
-      unreachable();
-    }
+    ASSERT(window::create_renderer(), "Failed to initialize SDL renderer: {}", SDL_GetError());
   }
 
   window::show_window();
@@ -114,9 +108,11 @@ static AuroraInfo initialize(int argc, char* argv[], const AuroraConfig& config)
   if (aurora_begin_frame()) {
     g_initialFrame = true;
   }
+  g_config.desiredBackend = selectedBackend;
   return {
       .backend = selectedBackend,
       .configPath = g_config.configPath,
+      .window = window::get_sdl_window(),
       .windowSize = size,
   };
 }
@@ -218,3 +214,8 @@ void aurora_shutdown() { aurora::shutdown(); }
 const AuroraEvent* aurora_update() { return aurora::update(); }
 bool aurora_begin_frame() { return aurora::begin_frame(); }
 void aurora_end_frame() { aurora::end_frame(); }
+AuroraBackend aurora_get_backend() { return aurora::g_config.desiredBackend; }
+const AuroraBackend* aurora_get_available_backends(size_t* count) {
+  *count = aurora::PreferredBackendOrder.size();
+  return aurora::PreferredBackendOrder.data();
+}
