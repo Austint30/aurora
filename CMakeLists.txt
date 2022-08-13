@@ -39,6 +39,7 @@ add_library(aurora STATIC
     lib/dolphin/vi.cpp
         lib/xr/xr.cpp lib/xr/XrVulkanFunctions.hpp lib/xr/XrVulkanFunctions.cpp)
 add_library(aurora::aurora ALIAS aurora)
+
 target_compile_definitions(aurora PUBLIC AURORA TARGET_PC)
 if (AURORA_NATIVE_MATRIX)
   target_compile_definitions(aurora PRIVATE AURORA_NATIVE_MATRIX)

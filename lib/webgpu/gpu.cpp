@@ -497,12 +497,6 @@ bool initialize(AuroraBackend auroraBackend) {
     return false;
   }
 
-
-  if (g_config.startOpenXR) {
-    Log.report(LOG_INFO, FMT_STRING("Enabling OpenXR support"));
-    initialize_openxr(*g_backendBinding);
-  }
-
   auto swapChainFormat = static_cast<wgpu::TextureFormat>(g_backendBinding->GetPreferredSwapChainTextureFormat());
 #else
   auto swapChainFormat = g_surface.GetPreferredFormat(g_adapter);
@@ -532,6 +526,10 @@ bool initialize(AuroraBackend auroraBackend) {
   };
   create_copy_pipeline();
   resize_swapchain(size.fb_width, size.fb_height, true);
+  if (g_config.startOpenXR) {
+    Log.report(LOG_INFO, FMT_STRING("Enabling OpenXR support"));
+    initialize_openxr(*g_backendBinding);
+  }
   return true;
 }
 

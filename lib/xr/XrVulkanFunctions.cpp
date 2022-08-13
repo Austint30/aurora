@@ -11,6 +11,9 @@ namespace aurora::xr {
 
 void XrVulkanFunctions::LoadInstanceProcs(XrInstance instance) {
   GET_GLOBAL_PROC(instance, GetVulkanGraphicsDevice2KHR);
+  GET_GLOBAL_PROC(instance, GetVulkanGraphicsRequirements2KHR);
+  GET_GLOBAL_PROC(instance, CreateVulkanDeviceKHR);
+  GET_GLOBAL_PROC(instance, CreateVulkanInstanceKHR);
 }
 
 }
