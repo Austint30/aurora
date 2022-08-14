@@ -53,7 +53,7 @@ bool DiscoverAdapter(dawn::native::Instance* instance, SDL_Window* window, wgpu:
 #endif
 #if defined(DAWN_ENABLE_BACKEND_VULKAN)
   case wgpu::BackendType::Vulkan: {
-    dawn::native::vulkan::AdapterDiscoveryOptions options;
+    dawn::native::vulkan::AdapterDiscoveryOptions options; // TODO: Need to DiscoverAdapters to deal with openxr being enabled
     return instance->DiscoverAdapters(&options);
   }
 #endif
