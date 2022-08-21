@@ -313,6 +313,29 @@ static wgpu::BackendType to_wgpu_backend(AuroraBackend backend) {
   }
 }
 
+static std::vector<std::string> aurora_backend_to_xr_ext(AuroraBackend backend){
+  switch (backend) {
+    case BACKEND_WEBGPU: return {};
+#ifdef XR_USE_GRAPHICS_API_D3D12
+    case BACKEND_D3D12: return {XR_KHR_D3D12_ENABLE_EXTENSION_NAME};
+#endif
+#ifdef XR_USE_GRAPHICS_API_METAL
+    case BACKEND_METAL: return {}; // METAL NOT IMPLEMENTED YET
+#endif
+#ifdef XR_USE_GRAPHICS_API_VULKAN
+    case BACKEND_VULKAN: return {XR_KHR_VULKAN_ENABLE2_EXTENSION_NAME};
+#endif
+#ifdef XR_USE_GRAPHICS_API_OPENGL
+    case BACKEND_OPENGL: return {XR_KHR_OPENGL_ENABLE_EXTENSION_NAME};
+#endif
+#ifdef XR_USE_GRAPHICS_API_OPENGL_ES
+    case BACKEND_OPENGLES: return {XR_KHR_OPENGL_ES_ENABLE_EXTENSION_NAME};
+#endif
+    default:
+      return {};
+  }
+}
+
 bool initialize(AuroraBackend auroraBackend) {
 #ifdef WEBGPU_DAWN
   if (!g_dawnInstance) {
@@ -337,6 +360,16 @@ bool initialize(AuroraBackend auroraBackend) {
   // D3D12's debug layer is very slow
   g_dawnInstance->EnableBackendValidation(backend != WGPUBackendType::D3D12);
 #endif
+
+  if (g_config.startOpenXR) {
+    Log.report(LOG_INFO, FMT_STRING("Enabling OpenXR support"));
+    xr::OpenXROptions options;
+    // Create session manager instance
+    std::shared_ptr<xr::OpenXRSessionManager> sesMgr = xr::InstantiateOXRSessionManager(options);
+
+    sesMgr->createInstance(aurora_backend_to_xr_ext(auroraBackend));
+    sesMgr->initializeSystem();
+  }
 
 #ifdef WEBGPU_DAWN
   SDL_Window* window = window::get_sdl_window();
@@ -523,13 +556,10 @@ bool initialize(AuroraBackend auroraBackend) {
   };
   create_copy_pipeline();
   resize_swapchain(size.fb_width, size.fb_height, true);
-  if (g_config.startOpenXR) {
-    Log.report(LOG_INFO, FMT_STRING("Enabling OpenXR support"));
-    initialize_openxr(*g_backendBinding);
-  }
   return true;
 }
 
+/*
 void initialize_openxr(utils::BackendBinding& backendBinding){
   xr::OpenXROptions options;
   std::shared_ptr<xr::OpenXRSessionManager> sesMgr = xr::InstantiateOXRSessionManager(options);
@@ -538,6 +568,7 @@ void initialize_openxr(utils::BackendBinding& backendBinding){
   sesMgr->initializeSystem();
   sesMgr->initializeSession(backendBinding);
 }
+ */
 
 void shutdown() {
   g_CopyBindGroupLayout = {};

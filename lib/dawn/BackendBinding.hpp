@@ -3,7 +3,7 @@
 #include <dawn/native/DawnNative.h>
 #include <webgpu/webgpu_cpp.h>
 #include <openxr/openxr.h>
-#include "..//xr/openxr_platform.hpp"
+#include "../xr/openxr_platform.hpp"
 #include <optional>
 
 struct SDL_Window;
@@ -24,6 +24,8 @@ public:
   const XrBaseInStructure* GetGraphicsBinding() const {
     return reinterpret_cast<const XrBaseInStructure*>(&m_xrGraphicsBinding);
   }
+
+  const WGPUDevice GetDevice();
 
 protected:
   BackendBinding(SDL_Window* window, WGPUDevice device);

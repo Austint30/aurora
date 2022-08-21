@@ -104,7 +104,7 @@ OpenXRSessionManager::OpenXRSessionManager(const OpenXROptions options)
   m_views.resize(2, {XR_TYPE_VIEW});
 }
 
-bool OpenXRSessionManager::createInstance(webgpu::utils::BackendBinding& backendBinding) {
+bool OpenXRSessionManager::createInstance(std::vector<std::string> instanceExtensions) {
   LogLayersAndExtensions();
 
   CHECK(m_instance == XR_NULL_HANDLE);
@@ -113,8 +113,7 @@ bool OpenXRSessionManager::createInstance(webgpu::utils::BackendBinding& backend
   std::vector<const char*> extensions;
 
   // Transform platform and graphics extension std::strings to C strings.
-  const std::vector<std::string> graphicsExtensions = backendBinding.XrGetInstanceExtensions();
-  std::transform(graphicsExtensions.begin(), graphicsExtensions.end(), std::back_inserter(extensions),
+  std::transform(instanceExtensions.begin(), instanceExtensions.end(), std::back_inserter(extensions),
                  [](const std::string& ext) { return ext.c_str(); });
 
   XrInstanceCreateInfo createInfo{XR_TYPE_INSTANCE_CREATE_INFO};
@@ -204,6 +203,9 @@ std::vector<XrView> OpenXRSessionManager::GetViews() {
 
   return m_views;
 }
+const XrInstance OpenXRSessionManager::GetInstance() const { return m_instance; }
+const XrSession OpenXRSessionManager::GetSession() const { return m_session; }
+const XrSystemId OpenXRSessionManager::GetSystemId() const { return m_systemId; }
 
 std::shared_ptr<OpenXRSessionManager> InstantiateOXRSessionManager(OpenXROptions options){
   g_OpenXRSessionManager = std::make_shared<OpenXRSessionManager>(options);

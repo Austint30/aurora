@@ -41,6 +41,17 @@ if (NOT TARGET fmt)
   add_subdirectory(fmt EXCLUDE_FROM_ALL)
 endif ()
 
+if (NOT TARGET openxr)
+  option(
+          BUILD_LOADER_WITH_EXCEPTION_HANDLING
+          "Enable exception handling in the loader. Leave this on unless your standard library is built to not throw."
+          ON
+  )
+  set(BUILD_LOADER_WITH_EXCEPTION_HANDLING OFF)
+  add_definitions(-DJSON_USE_EXCEPTION=0)
+  add_subdirectory(openxr EXCLUDE_FROM_ALL)
+endif ()
+
 if (NOT TARGET imgui)
   add_library(imgui
       imgui/imgui.cpp

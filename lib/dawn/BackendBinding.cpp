@@ -1,4 +1,8 @@
 #include "BackendBinding.hpp"
+#include <openxr/openxr.h>
+#include "../xr/openxr_platform.hpp"
+#include "../xr/xr.hpp"
+#include "../webgpu/gpu.hpp"
 
 #if defined(DAWN_ENABLE_BACKEND_D3D12)
 #include <dawn/native/D3D12Backend.h>
@@ -37,6 +41,8 @@ BackendBinding* CreateVulkanBinding(SDL_Window* window, WGPUDevice device);
 
 BackendBinding::BackendBinding(SDL_Window* window, WGPUDevice device) : m_window(window), m_device(device) {}
 
+const WGPUDevice BackendBinding::GetDevice() { return m_device; }
+
 bool DiscoverAdapter(dawn::native::Instance* instance, SDL_Window* window, wgpu::BackendType type) {
   switch (type) {
 #if defined(DAWN_ENABLE_BACKEND_D3D12)
@@ -53,7 +59,30 @@ bool DiscoverAdapter(dawn::native::Instance* instance, SDL_Window* window, wgpu:
 #endif
 #if defined(DAWN_ENABLE_BACKEND_VULKAN)
   case wgpu::BackendType::Vulkan: {
-    dawn::native::vulkan::AdapterDiscoveryOptions options; // TODO: Need to DiscoverAdapters to deal with openxr being enabled
+    if (xr::g_OpenXRSessionManager != nullptr){
+      auto *callback = +[](const VkInstanceCreateInfo* vkCreateInfo, const VkAllocationCallbacks* allocator, VkInstance* vkInstance, PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr) {
+        XrInstance xrInstance = xr::g_OpenXRSessionManager->GetInstance();
+        XrSystemId xrSystemId = xr::g_OpenXRSessionManager->GetSystemId();
+
+        PFN_xrCreateVulkanInstanceKHR createVulkanInstancePFN = nullptr;
+        xrGetInstanceProcAddr(xrInstance, "xrCreateVulkanInstanceKHR", reinterpret_cast<PFN_xrVoidFunction*>(&createVulkanInstancePFN));
+
+        VkResult vkResult;
+
+        XrVulkanInstanceCreateInfoKHR createInfo{XR_TYPE_VULKAN_INSTANCE_CREATE_INFO_KHR};
+        createInfo.systemId = xrSystemId;
+        createInfo.pfnGetInstanceProcAddr = vkGetInstanceProcAddr;
+        createInfo.vulkanCreateInfo = vkCreateInfo;
+        createInfo.vulkanAllocator = nullptr;
+
+        xr::CHECK_XRCMD(createVulkanInstancePFN(xrInstance, &createInfo, vkInstance, &vkResult));
+        xr::Log.report(LOG_INFO, FMT_STRING("XrInstance creation successful!"));
+        return vkResult;
+      };
+      auto options = dawn::native::vulkan::AdapterDiscoveryOptions(callback);
+      return instance->DiscoverAdapters(&options);
+    };
+    dawn::native::vulkan::AdapterDiscoveryOptions options;
     return instance->DiscoverAdapters(&options);
   }
 #endif
