@@ -60,7 +60,7 @@ bool DiscoverAdapter(dawn::native::Instance* instance, SDL_Window* window, wgpu:
 #if defined(DAWN_ENABLE_BACKEND_VULKAN)
   case wgpu::BackendType::Vulkan: {
     if (xr::g_OpenXRSessionManager != nullptr){
-      auto *callback = +[](const VkInstanceCreateInfo* vkCreateInfo, const VkAllocationCallbacks* allocator, VkInstance* vkInstance, PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr) {
+      auto *vkCreateInstanceCallback = +[](const VkInstanceCreateInfo* vkCreateInfo, const VkAllocationCallbacks* allocator, VkInstance* vkInstance, PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr) {
         XrInstance xrInstance = xr::g_OpenXRSessionManager->GetInstance();
         XrSystemId xrSystemId = xr::g_OpenXRSessionManager->GetSystemId();
 
@@ -76,10 +76,29 @@ bool DiscoverAdapter(dawn::native::Instance* instance, SDL_Window* window, wgpu:
         createInfo.vulkanAllocator = nullptr;
 
         xr::CHECK_XRCMD(createVulkanInstancePFN(xrInstance, &createInfo, vkInstance, &vkResult));
-        xr::Log.report(LOG_INFO, FMT_STRING("XrInstance creation successful!"));
+        xr::Log.report(LOG_INFO, FMT_STRING("xrCreateVulkanInstance successful"));
         return vkResult;
       };
-      auto options = dawn::native::vulkan::AdapterDiscoveryOptions(callback);
+      auto *gatherPhysicalDevicesCallback = +[](VkInstance instance, const PFN_vkGetInstanceProcAddr& vkGetInstanceProcAddr) {
+        XrInstance xrInstance = xr::g_OpenXRSessionManager->GetInstance();
+        XrSystemId xrSystemId = xr::g_OpenXRSessionManager->GetSystemId();
+
+        std::vector<VkPhysicalDevice> physicalDevices(1);
+
+        PFN_xrGetVulkanGraphicsDevice2KHR xrGetVulkanGraphicsDevice2PFN = nullptr;
+        xrGetInstanceProcAddr(xrInstance, "xrGetVulkanGraphicsDevice2KHR", reinterpret_cast<PFN_xrVoidFunction*>(&xrGetVulkanGraphicsDevice2PFN));
+
+        XrVulkanGraphicsDeviceGetInfoKHR deviceGetInfo{XR_TYPE_VULKAN_GRAPHICS_DEVICE_GET_INFO_KHR};
+        deviceGetInfo.systemId = xrSystemId;
+        deviceGetInfo.vulkanInstance = instance;
+
+        xr::CHECK_XRCMD(xrGetVulkanGraphicsDevice2PFN(xrInstance, &deviceGetInfo, &physicalDevices[0]));
+
+        xr::Log.report(LOG_INFO, FMT_STRING("xrGetVulkanGraphicsDevice2KHR successful"));
+
+        return std::move(physicalDevices);
+      };
+      auto options = dawn::native::vulkan::AdapterDiscoveryOptions(vkCreateInstanceCallback, gatherPhysicalDevicesCallback);
       return instance->DiscoverAdapters(&options);
     };
     dawn::native::vulkan::AdapterDiscoveryOptions options;
