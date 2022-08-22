@@ -18,13 +18,6 @@ public:
     return WGPUTextureFormat_RGBA8Unorm;
   }
 
-  std::optional<XrStructureType> XrGetGraphicsBindingType() const override { return std::nullopt; }
-  std::vector<std::string> XrGetInstanceExtensions() const override { return {}; };
-
-  void XrInitializeDevice(XrInstance instance, XrSystemId systemId) override {
-
-  };
-
 private:
   DawnSwapChainImplementation m_swapChainImpl{};
 };

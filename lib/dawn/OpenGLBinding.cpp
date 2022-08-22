@@ -23,24 +23,6 @@ public:
     return dawn::native::opengl::GetNativeSwapChainPreferredFormat(&m_swapChainImpl);
   }
 
-  std::optional<XrStructureType> XrGetGraphicsBindingType() const override {
-#ifdef XR_USE_PLATFORM_WIN32
-    return XR_TYPE_GRAPHICS_BINDING_OPENGL_WIN32_KHR;
-#elif defined(XR_USE_PLATFORM_XLIB)
-    return XR_TYPE_GRAPHICS_BINDING_OPENGL_XLIB_KHR;
-#elif defined(XR_USE_PLATFORM_XCB)
-    return XR_TYPE_GRAPHICS_BINDING_OPENGL_XCB_KHR;
-#elif defined(XR_USE_PLATFORM_WAYLAND)
-    return XR_TYPE_GRAPHICS_BINDING_OPENGL_WAYLAND_KHR;
-#endif
-    return std::nullopt;
-  }
-  std::vector<std::string> XrGetInstanceExtensions() const override { return {XR_KHR_OPENGL_ENABLE_EXTENSION_NAME}; };
-
-  void XrInitializeDevice(XrInstance instance, XrSystemId systemId) override {
-
-  };
-
 private:
   DawnSwapChainImplementation m_swapChainImpl{};
 

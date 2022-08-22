@@ -47,7 +47,7 @@ public:
   void initializeSystem();
   //
   // Create a Session and other basic session-level initialization.
-  void initializeSession(webgpu::utils::BackendBinding& backendBinding);
+    void initializeSession(XrGraphicsBindingVulkan2KHR& graphicsBinding);
 
   //  // Create a Swapchain which requires coordinating with the graphics plugin to select the format, getting the system
   //  // graphics properties, getting the view configuration and grabbing the resulting swapchain images.

@@ -73,7 +73,7 @@ bool DiscoverAdapter(dawn::native::Instance* instance, SDL_Window* window, wgpu:
         createInfo.systemId = xrSystemId;
         createInfo.pfnGetInstanceProcAddr = vkGetInstanceProcAddr;
         createInfo.vulkanCreateInfo = vkCreateInfo;
-        createInfo.vulkanAllocator = nullptr;
+        createInfo.vulkanAllocator = allocator;
 
         xr::CHECK_XRCMD(createVulkanInstancePFN(xrInstance, &createInfo, vkInstance, &vkResult));
         xr::Log.report(LOG_INFO, FMT_STRING("xrCreateVulkanInstance successful"));
@@ -98,7 +98,43 @@ bool DiscoverAdapter(dawn::native::Instance* instance, SDL_Window* window, wgpu:
 
         return std::move(physicalDevices);
       };
-      auto options = dawn::native::vulkan::AdapterDiscoveryOptions(vkCreateInstanceCallback, gatherPhysicalDevicesCallback);
+      auto *vkCreateDevice = +[](VkPhysicalDevice physicalDevice, const VkDeviceCreateInfo* deviceCreateInfo, const VkAllocationCallbacks* allocator, VkDevice* vkDevice, PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr){
+        XrInstance xrInstance = xr::g_OpenXRSessionManager->GetInstance();
+        XrSystemId xrSystemId = xr::g_OpenXRSessionManager->GetSystemId();
+
+
+        // Call xrGetVulkanGraphicsRequirements2KHR because we have to for some reason ---------------------------------
+        XrGraphicsRequirementsVulkan2KHR graphicsRequirements{XR_TYPE_GRAPHICS_REQUIREMENTS_VULKAN2_KHR};
+        PFN_xrGetVulkanGraphicsRequirements2KHR xrGetVulkanGraphicsRequirements2PFN = nullptr;
+        xrGetInstanceProcAddr(xrInstance, "xrGetVulkanGraphicsRequirements2KHR", reinterpret_cast<PFN_xrVoidFunction*>(&xrGetVulkanGraphicsRequirements2PFN));
+
+        xrGetVulkanGraphicsRequirements2PFN(xrInstance, xrSystemId, &graphicsRequirements);
+        // -------------------------------------------------------------------------------------------------------------
+
+        PFN_xrCreateVulkanDeviceKHR createVulkanDevicePFN = nullptr;
+        xrGetInstanceProcAddr(xrInstance, "xrCreateVulkanDeviceKHR", reinterpret_cast<PFN_xrVoidFunction*>(&createVulkanDevicePFN));
+
+        VkResult vkResult;
+
+        XrVulkanDeviceCreateInfoKHR createInfo{XR_TYPE_VULKAN_DEVICE_CREATE_INFO_KHR};
+        createInfo.systemId = xrSystemId;
+        createInfo.pfnGetInstanceProcAddr = vkGetInstanceProcAddr;
+        createInfo.vulkanCreateInfo = deviceCreateInfo;
+        createInfo.vulkanPhysicalDevice = physicalDevice;
+        createInfo.vulkanAllocator = allocator;
+
+        xr::CHECK_XRCMD(createVulkanDevicePFN(xrInstance, &createInfo, vkDevice, &vkResult))
+
+        xr::Log.report(LOG_INFO, FMT_STRING("xrCreateVulkanDeviceKHR successful"));
+
+        return vkResult;
+      };
+      dawn::native::vulkan::OverrideFunctions overrideFunctions = {
+          vkCreateInstanceCallback, gatherPhysicalDevicesCallback,
+          vkCreateDevice
+      };
+
+      auto options = dawn::native::vulkan::AdapterDiscoveryOptions(overrideFunctions);
       return instance->DiscoverAdapters(&options);
     };
     dawn::native::vulkan::AdapterDiscoveryOptions options;

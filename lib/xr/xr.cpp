@@ -156,17 +156,15 @@ void OpenXRSessionManager::initializeSystem() {
   //  m_graphicsPlugin->InitializeDevice(m_instance, m_systemId);
 }
 
-void OpenXRSessionManager::initializeSession(webgpu::utils::BackendBinding& backendBinding) {
+void OpenXRSessionManager::initializeSession(XrGraphicsBindingVulkan2KHR& graphicsBinding) {
   CHECK(m_instance != XR_NULL_HANDLE);
   CHECK(m_session == XR_NULL_HANDLE);
 
   {
     Log.report(LOG_INFO, FMT_STRING("Creating session..."));
 
-    backendBinding.XrInitializeDevice(m_instance, m_systemId);
-    XrBaseInStructure* graphicsBinding = const_cast<XrBaseInStructure*>(backendBinding.GetGraphicsBinding());
     XrSessionCreateInfo createInfo{XR_TYPE_SESSION_CREATE_INFO};
-    createInfo.next = graphicsBinding;
+    createInfo.next = &graphicsBinding;
     createInfo.systemId = m_systemId;
     CHECK_XRCMD(xrCreateSession(m_instance, &createInfo, &m_session));
   }
