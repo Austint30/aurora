@@ -163,12 +163,16 @@ void OpenXRSessionManager::initializeSession(XrBaseInStructure& graphicsBinding)
   CHECK(m_session == XR_NULL_HANDLE);
 
   {
-    Log.report(LOG_INFO, FMT_STRING("Creating session..."));
-
     XrSessionCreateInfo createInfo{XR_TYPE_SESSION_CREATE_INFO};
     createInfo.next = &graphicsBinding;
     createInfo.systemId = m_systemId;
     CHECK_XRCMD(xrCreateSession(m_instance, &createInfo, &m_session));
+    Log.report(LOG_INFO, FMT_STRING("OpenXR session created successfully"));
+  }
+  {
+    XrSessionBeginInfo sessionBeginInfo{XR_TYPE_SESSION_BEGIN_INFO};
+    sessionBeginInfo.primaryViewConfigurationType = m_viewConfigType;
+    CHECK_XRCMD(xrBeginSession(m_session, &sessionBeginInfo));
   }
 
   {
@@ -185,9 +189,16 @@ std::vector<XrView> OpenXRSessionManager::GetViews() {
   uint32_t viewCapacityInput = (uint32_t)m_views.size();
   uint32_t viewCountOutput;
 
+  XrFrameWaitInfo frameWaitInfo{XR_TYPE_FRAME_WAIT_INFO};
+  XrFrameState frameState{XR_TYPE_FRAME_STATE};
+  CHECK_XRCMD(xrWaitFrame(m_session, &frameWaitInfo, &frameState));
+
+  XrFrameBeginInfo frameBeginInfo{XR_TYPE_FRAME_BEGIN_INFO};
+  CHECK_XRCMD(xrBeginFrame(m_session, &frameBeginInfo));
+
   XrViewLocateInfo viewLocateInfo{XR_TYPE_VIEW_LOCATE_INFO};
   viewLocateInfo.viewConfigurationType = m_viewConfigType;
-  //    viewLocateInfo.displayTime = predictedDisplayTime;
+      viewLocateInfo.displayTime = frameState.predictedDisplayTime;
   viewLocateInfo.space = m_appSpace;
 
   res = xrLocateViews(m_session, &viewLocateInfo, &viewState, viewCapacityInput, &viewCountOutput, m_views.data());
