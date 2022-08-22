@@ -1,7 +1,8 @@
 #include "BackendBinding.hpp"
 #include <openxr/openxr.h>
-#include "../xr/openxr_platform.hpp"
-#include "../xr/xr.hpp"
+#include "aurora/xr/openxr_platform.hpp"
+#include "aurora/xr/xr.hpp"
+#include "../xr/check.h"
 #include "../webgpu/gpu.hpp"
 
 #if defined(DAWN_ENABLE_BACKEND_D3D12)

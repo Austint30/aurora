@@ -4,6 +4,7 @@
 #ifdef __cplusplus
 #include <cstddef>
 #include <cstdint>
+#include <openxr/openxr.h>
 
 extern "C" {
 #else

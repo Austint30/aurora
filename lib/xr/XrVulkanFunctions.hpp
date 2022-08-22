@@ -2,7 +2,7 @@
 
 #include "common.h"
 #include "openxr/openxr.h"
-#include "openxr_platform.hpp"
+#include "aurora/xr/openxr_platform.hpp"
 
 namespace aurora::xr {
 

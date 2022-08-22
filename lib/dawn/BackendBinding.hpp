@@ -3,7 +3,7 @@
 #include <dawn/native/DawnNative.h>
 #include <webgpu/webgpu_cpp.h>
 #include <openxr/openxr.h>
-#include "../xr/openxr_platform.hpp"
+#include "aurora/xr/openxr_platform.hpp"
 #include <optional>
 
 struct SDL_Window;

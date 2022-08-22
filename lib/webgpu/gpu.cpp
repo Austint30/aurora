@@ -10,7 +10,7 @@
 #include <memory>
 #include <algorithm>
 
-#include "../xr/xr.hpp"
+#include "aurora/xr/xr.hpp"
 
 #ifdef WEBGPU_DAWN
 #include <dawn/native/DawnNative.h>
@@ -558,8 +558,8 @@ bool initialize(AuroraBackend auroraBackend) {
   resize_swapchain(size.fb_width, size.fb_height, true);
 
   if (g_config.startOpenXR && g_backendBinding->GetGraphicsBinding()) {
-    XrGraphicsBindingVulkan2KHR graphicsBinding = *(g_backendBinding->GetGraphicsBinding());
-    xr::g_OpenXRSessionManager->initializeSession(graphicsBinding);
+    XrBaseInStructure* graphicsBinding = (XrBaseInStructure*)(g_backendBinding->GetGraphicsBinding());
+    xr::g_OpenXRSessionManager->initializeSession(*graphicsBinding);
   }
   return true;
 }

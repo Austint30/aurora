@@ -2,7 +2,7 @@
 
 #include <SDL_video.h>
 #include <dawn/native/OpenGLBackend.h>
-#include "../xr/openxr_platform.hpp"
+#include "aurora/xr/openxr_platform.hpp"
 
 namespace aurora::webgpu::utils {
 class OpenGLBinding : public BackendBinding {

@@ -2,7 +2,7 @@
 
 #include "../internal.hpp"
 #include "../webgpu/gpu.hpp"
-#include "../xr/openxr_platform.hpp"
+#include "aurora/xr/openxr_platform.hpp"
 #include "../xr/common.h"
 #include "../xr/XrVulkanFunctions.hpp"
 #include <iostream>
