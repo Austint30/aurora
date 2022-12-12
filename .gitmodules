@@ -1,6 +1,7 @@
 [submodule "extern/dawn"]
 	path = extern/dawn
 	url = https://github.com/Austint30/dawn-cmake.git
+	branch = vulkan-functions-override
 [submodule "extern/SDL"]
 	path = extern/SDL
 	url = https://github.com/encounter/SDL.git
