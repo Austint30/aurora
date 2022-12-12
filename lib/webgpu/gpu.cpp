@@ -172,7 +172,7 @@ var<private> uvs: array<vec2<f32>, 3> = array<vec2<f32>, 3>(
     vec2(2.0, 0.0),
 );
 
-@stage(vertex)
+@vertex
 fn vs_main(@builtin(vertex_index) vtxIdx: u32) -> VertexOutput {
     var out: VertexOutput;
     out.pos = vec4<f32>(pos[vtxIdx], 0.0, 1.0);
@@ -180,7 +180,7 @@ fn vs_main(@builtin(vertex_index) vtxIdx: u32) -> VertexOutput {
     return out;
 }
 
-@stage(fragment)
+@fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     return textureSample(efb_texture, efb_sampler, in.uv);
 }
@@ -267,6 +267,27 @@ void create_copy_bind_group() {
       .entries = bindGroupEntries.data(),
   };
   g_CopyBindGroup = g_device.CreateBindGroup(&bindGroupDescriptor);
+}
+
+static void log_callback(WGPULoggingType type, char const * message, void * userdata) {
+  AuroraLogLevel level = LOG_FATAL;
+  switch (type) {
+  case WGPULoggingType_Verbose:
+    level = LOG_DEBUG;
+    break;
+  case WGPULoggingType_Info:
+    level = LOG_INFO;
+    break;
+  case WGPULoggingType_Warning:
+    level = LOG_WARNING;
+    break;
+  case WGPULoggingType_Error:
+    level = LOG_ERROR;
+    break;
+  default:
+    break;
+  }
+  Log.report(level, FMT_STRING("WebGPU message: {}"), message);
 }
 
 static void error_callback(WGPUErrorType type, char const* message, void* userdata) {
@@ -515,6 +536,7 @@ bool initialize(AuroraBackend auroraBackend) {
     if (!g_device) {
       return false;
     }
+    g_device.SetLoggingCallback(&log_callback, nullptr);
     g_device.SetUncapturedErrorCallback(&error_callback, nullptr);
   }
   g_device.SetDeviceLostCallback(nullptr, nullptr);
