@@ -277,7 +277,7 @@ private:
 };
 
 BackendBinding* CreateVulkanBinding(SDL_Window* window, WGPUDevice device) {
-  if (xr::g_OpenXRSessionManager->xrEnabled){
+  if (xr::g_OpenXRSessionManager){
     return new XrVulkanBinding(window, device);
   }
   else

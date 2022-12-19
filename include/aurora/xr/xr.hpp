@@ -27,7 +27,6 @@ private:
   std::vector<XrViewConfigurationView> m_configViews;
 
 public:
-  bool xrEnabled = false;
   const XrInstance GetInstance() const;
   const XrSession GetSession() const;
   const XrSystemId GetSystemId() const;

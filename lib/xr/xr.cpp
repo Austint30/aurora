@@ -136,7 +136,6 @@ bool OpenXRSessionManager::createInstance(std::vector<std::string> instanceExten
 }
 
 void OpenXRSessionManager::initializeSystem() {
-  xrEnabled = true;
   CHECK(m_instance != XR_NULL_HANDLE);
   CHECK(m_systemId == XR_NULL_SYSTEM_ID);
 
