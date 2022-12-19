@@ -10,7 +10,7 @@
 #include <memory>
 #include <algorithm>
 
-#include "../xr/xr.hpp"
+#include "aurora/xr/xr.hpp"
 
 #ifdef WEBGPU_DAWN
 #include <dawn/native/DawnNative.h>

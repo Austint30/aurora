@@ -19,7 +19,8 @@
 //#include "dawn/native/vulkan/FencedDeleter.h"
 //#include "dawn/native/vulkan/TextureVk.h"
 #include "dawn/webgpu_cpp.h"
-#include "../xr.hpp"
+#include "aurora/xr/xr.hpp"
+#include "../check.h"
 
 namespace aurora::xr {
 

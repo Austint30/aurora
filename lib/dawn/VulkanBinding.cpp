@@ -4,7 +4,7 @@
 #include "../webgpu/gpu.hpp"
 #include "aurora/xr/openxr_platform.hpp"
 #include "../xr/common.h"
-#include "../xr/xr.hpp"
+#include "aurora/xr/xr.hpp"
 #include "../xr/XrVulkanFunctions.hpp"
 #include "../xr/vulkan/XrSwapChainImplVk.h"
 #include <iostream>
