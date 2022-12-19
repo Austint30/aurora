@@ -5,7 +5,7 @@
 #include <cmath>
 #include "check.h"
 #include "log.hpp"
-#include "xr.hpp"
+#include "aurora/xr/xr.hpp"
 
 namespace aurora::xr {
 

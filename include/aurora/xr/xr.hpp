@@ -9,8 +9,6 @@
 #include <vector>
 
 #include "aurora/xr/OpenXROptions.h"
-#include "aurora/xr/openxr_platform.hpp"
-#include "XrVulkanFunctions.hpp"
 
 namespace aurora::xr {
 struct OpenXRSessionManager {
