@@ -57,7 +57,7 @@ if (EMSCRIPTEN)
   target_link_options(aurora PUBLIC -sUSE_WEBGPU=1 -sASYNCIFY -sEXIT_RUNTIME)
   target_compile_definitions(aurora PRIVATE ENABLE_BACKEND_WEBGPU)
 else ()
-  target_link_libraries(aurora PRIVATE dawn_native dawncpp webgpu_dawn dawn_aurora_config)
+  target_link_libraries(aurora PRIVATE dawn_native dawncpp webgpu_dawn)
   target_sources(aurora PRIVATE lib/dawn/BackendBinding.cpp)
   target_compile_definitions(aurora PRIVATE WEBGPU_DAWN)
   #   Gives aurora access to src files in dawn
