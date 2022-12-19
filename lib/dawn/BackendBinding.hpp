@@ -17,7 +17,7 @@ public:
   virtual uint64_t GetSwapChainImplementation() = 0;
   virtual WGPUTextureFormat GetPreferredSwapChainTextureFormat() = 0;
 
-  const XrGraphicsBindingVulkan2KHR* GetGraphicsBinding() const {
+  const XrGraphicsBindingVulkan2KHR* GetXrGraphicsBinding() const {
     return &m_xrGraphicsBinding;
   }
 

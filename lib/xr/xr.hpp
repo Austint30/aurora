@@ -10,6 +10,7 @@
 
 #include "aurora/xr/OpenXROptions.h"
 #include "aurora/xr/openxr_platform.hpp"
+#include "XrVulkanFunctions.hpp"
 
 namespace aurora::xr {
 struct OpenXRSessionManager {
@@ -18,16 +19,16 @@ private:
   const OpenXROptions m_options;
   XrInstance m_instance{XR_NULL_HANDLE};
   XrSession m_session{XR_NULL_HANDLE};
-
-private:
   XrSpace m_appSpace{XR_NULL_HANDLE};
   XrFormFactor m_formFactor{XR_FORM_FACTOR_HEAD_MOUNTED_DISPLAY};
   XrViewConfigurationType m_viewConfigType{XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO};
   XrEnvironmentBlendMode m_environmentBlendMode{XR_ENVIRONMENT_BLEND_MODE_OPAQUE};
   XrSystemId m_systemId{XR_NULL_SYSTEM_ID};
   std::vector<XrView> m_views;
+  std::vector<XrViewConfigurationView> m_configViews;
 
 public:
+  bool xrEnabled = false;
   const XrInstance GetInstance() const;
   const XrSession GetSession() const;
   const XrSystemId GetSystemId() const;
@@ -36,6 +37,12 @@ public:
   virtual ~OpenXRSessionManager() = default;
 
   std::vector<XrView> GetViews();
+
+  uint32_t GetNumViews() {
+      return m_views.size();
+  };
+
+
 
   // Create an Instance and other basic instance-level initialization.
   bool createInstance(std::vector<std::string> instanceExtensions);
@@ -47,9 +54,6 @@ public:
   // Create a Session and other basic session-level initialization.
   void initializeSession(XrBaseInStructure& graphicsBinding);
 
-  //  // Create a Swapchain which requires coordinating with the graphics plugin to select the format, getting the system
-  //  // graphics properties, getting the view configuration and grabbing the resulting swapchain images.
-  //  virtual void CreateSwapchains() = 0;
   //
   //  // Process any events in the event queue.
   //  virtual void PollEvents(bool* exitRenderLoop, bool* requestRestart) = 0;
@@ -75,6 +79,7 @@ public:
   void LogEnvironmentBlendMode(XrViewConfigurationType type);
 
   void LogViewConfigurations();
+  std::vector<XrViewConfigurationView> GetConfigViews();
 };
 
 extern std::shared_ptr<OpenXRSessionManager> g_OpenXRSessionManager;

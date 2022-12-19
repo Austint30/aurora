@@ -37,7 +37,9 @@ add_library(aurora STATIC
     lib/dolphin/GXTransform.cpp
     lib/dolphin/GXVert.cpp
     lib/dolphin/vi.cpp
-    lib/xr/xr.cpp)
+    lib/xr/xr.cpp
+    lib/xr/vulkan/XrSwapChainImplVk.cpp
+    lib/xr/XrVulkanFunctions.cpp)
 add_library(aurora::aurora ALIAS aurora)
 
 target_compile_definitions(aurora PUBLIC AURORA TARGET_PC)
@@ -55,9 +57,11 @@ if (EMSCRIPTEN)
   target_link_options(aurora PUBLIC -sUSE_WEBGPU=1 -sASYNCIFY -sEXIT_RUNTIME)
   target_compile_definitions(aurora PRIVATE ENABLE_BACKEND_WEBGPU)
 else ()
-  target_link_libraries(aurora PRIVATE dawn_native dawncpp webgpu_dawn)
+  target_link_libraries(aurora PRIVATE dawn_native dawncpp webgpu_dawn dawn_aurora_config)
   target_sources(aurora PRIVATE lib/dawn/BackendBinding.cpp)
   target_compile_definitions(aurora PRIVATE WEBGPU_DAWN)
+  #   Gives aurora access to src files in dawn
+  #   TODO: Probably not a good idea
 endif ()
 target_link_libraries(aurora PRIVATE absl::btree absl::flat_hash_map)
 if (DAWN_ENABLE_VULKAN)

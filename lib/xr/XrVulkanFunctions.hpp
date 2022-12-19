@@ -13,5 +13,11 @@ struct XrVulkanFunctions {
   PFN_xrGetVulkanGraphicsRequirements2KHR GetVulkanGraphicsRequirements2KHR;
   PFN_xrCreateVulkanDeviceKHR CreateVulkanDeviceKHR;
   PFN_xrCreateVulkanInstanceKHR CreateVulkanInstanceKHR;
+  PFN_xrCreateSwapchain CreateSwapchain;
+  PFN_xrEnumerateViewConfigurationViews EnumerateViewConfigurationViews;
+  PFN_xrEnumerateSwapchainImages EnumerateSwapchainImages;
+  PFN_xrAcquireSwapchainImage AcquireSwapchainImage;
+  PFN_xrWaitSwapchainImage WaitSwapchainImage;
+  PFN_xrReleaseSwapchainImage ReleaseSwapchainImage;
 };
 }

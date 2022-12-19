@@ -1,6 +1,5 @@
 #include "XrVulkanFunctions.hpp"
 #include <openxr/openxr.h>
-#include "openxr_platform.hpp"
 
 namespace aurora::xr {
 #define GET_GLOBAL_PROC(instance, name)                                                           \
@@ -14,6 +13,12 @@ void XrVulkanFunctions::LoadInstanceProcs(XrInstance instance) {
   GET_GLOBAL_PROC(instance, GetVulkanGraphicsRequirements2KHR);
   GET_GLOBAL_PROC(instance, CreateVulkanDeviceKHR);
   GET_GLOBAL_PROC(instance, CreateVulkanInstanceKHR);
+  GET_GLOBAL_PROC(instance, CreateSwapchain);
+  GET_GLOBAL_PROC(instance, EnumerateViewConfigurationViews);
+  GET_GLOBAL_PROC(instance, EnumerateSwapchainImages);
+  GET_GLOBAL_PROC(instance, AcquireSwapchainImage);
+  GET_GLOBAL_PROC(instance, WaitSwapchainImage);
+  GET_GLOBAL_PROC(instance, ReleaseSwapchainImage);
 }
 
 }

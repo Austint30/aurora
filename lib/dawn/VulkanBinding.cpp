@@ -4,11 +4,14 @@
 #include "../webgpu/gpu.hpp"
 #include "aurora/xr/openxr_platform.hpp"
 #include "../xr/common.h"
+#include "../xr/xr.hpp"
 #include "../xr/XrVulkanFunctions.hpp"
+#include "../xr/vulkan/XrSwapChainImplVk.h"
 #include <iostream>
 
 #include <SDL_vulkan.h>
 #include <dawn/native/VulkanBackend.h>
+#include <dawn/common/SwapChainUtils.h>
 
 #define CHECK_VKCMD(cmd) CheckVkResult(cmd, #cmd, FILE_AND_LINE);
 #define CHECK_VKRESULT(res, cmdStr) CheckVkResult(res, cmdStr, FILE_AND_LINE);
@@ -95,25 +98,21 @@ inline void ThrowIfFailed(VkResult res) {
 
 class VulkanBinding : public BackendBinding {
 public:
-  VulkanBinding(SDL_Window* window, WGPUDevice device) : BackendBinding(window, device) {
-    buildXrGraphicsBinding();
-  }
+  VulkanBinding(SDL_Window* window, WGPUDevice device) : BackendBinding(window, device) {}
 
-  uint64_t GetSwapChainImplementation() override {
-    if (m_swapChainImpl.userData == nullptr) {
-      CreateSwapChainImpl();
-    }
-    return reinterpret_cast<uint64_t>(&m_swapChainImpl);
-  }
-
-  WGPUTextureFormat GetPreferredSwapChainTextureFormat() override {
+  WGPUTextureFormat GetPreferredSwapChainTextureFormat() {
     if (m_swapChainImpl.userData == nullptr) {
       CreateSwapChainImpl();
     }
     return dawn::native::vulkan::GetNativeSwapChainPreferredFormat(&m_swapChainImpl);
   }
 
-  ;
+  uint64_t GetSwapChainImplementation() {
+    if (m_swapChainImpl.userData == nullptr) {
+      CreateSwapChainImpl();
+    }
+    return reinterpret_cast<uint64_t>(&m_swapChainImpl);
+  }
 
   VkBool32 debugReport(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType, uint64_t object, size_t /*location*/,
                        int32_t /*messageCode*/, const char* pLayerPrefix, const char* pMessage) {
@@ -237,9 +236,23 @@ public:
     return nullptr;
   }
 
-private:
+protected:
   DawnSwapChainImplementation m_swapChainImpl{};
+  virtual void CreateSwapChainImpl() {
+    VkSurfaceKHR surface = VK_NULL_HANDLE;
+    ASSERT(SDL_Vulkan_CreateSurface(m_window, dawn::native::vulkan::GetInstance(m_device), &surface),
+           "Failed to create Vulkan surface: {}", SDL_GetError());
+    m_swapChainImpl = dawn::native::vulkan::CreateNativeSwapChainImpl(m_device, surface);
+  }
+};
 
+class XrVulkanBinding : public VulkanBinding {
+public:
+  XrVulkanBinding(SDL_Window* window, WGPUDevice device) : VulkanBinding(window, device) {
+    buildXrGraphicsBinding();
+  }
+
+private:
   void buildXrGraphicsBinding(){
 
     VkInstance vkInstance = dawn::native::vulkan::GetInstance(m_device);
@@ -254,13 +267,23 @@ private:
     m_xrGraphicsBinding.queueIndex = 0;
   }
 
-  void CreateSwapChainImpl() {
+  void CreateSwapChainImpl() override {
     VkSurfaceKHR surface = VK_NULL_HANDLE;
     ASSERT(SDL_Vulkan_CreateSurface(m_window, dawn::native::vulkan::GetInstance(m_device), &surface),
            "Failed to create Vulkan surface: {}", SDL_GetError());
-    m_swapChainImpl = dawn::native::vulkan::CreateNativeSwapChainImpl(m_device, surface);
+//    m_swapChainImpl = dawn::native::vulkan::CreateNativeSwapChainImpl(m_device, surface);
+    m_swapChainImpl = CreateSwapChainImplementation(new xr::XrSwapChainImplVk());
   }
 };
 
-BackendBinding* CreateVulkanBinding(SDL_Window* window, WGPUDevice device) { return new VulkanBinding(window, device); }
-} // namespace aurora::webgpu::utils
+BackendBinding* CreateVulkanBinding(SDL_Window* window, WGPUDevice device) {
+  if (xr::g_OpenXRSessionManager->xrEnabled){
+    return new XrVulkanBinding(window, device);
+  }
+  else
+  {
+    return new VulkanBinding(window, device);
+  }
+}
+
+}; // namespace aurora::webgpu::utils

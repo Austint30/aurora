@@ -2,10 +2,10 @@
 // Created by austin on 1/30/22.
 // Derived from https://github.com/KhronosGroup/OpenXR-SDK-Source/blob/master/src/tests/hello_xr/openxr_program.cpp
 //
-#include "aurora/xr/xr.hpp"
 #include <cmath>
 #include "check.h"
 #include "log.hpp"
+#include "xr.hpp"
 
 namespace aurora::xr {
 
@@ -136,6 +136,7 @@ bool OpenXRSessionManager::createInstance(std::vector<std::string> instanceExten
 }
 
 void OpenXRSessionManager::initializeSystem() {
+  xrEnabled = true;
   CHECK(m_instance != XR_NULL_HANDLE);
   CHECK(m_systemId == XR_NULL_SYSTEM_ID);
 
@@ -217,6 +218,48 @@ std::vector<XrView> OpenXRSessionManager::GetViews() {
 const XrInstance OpenXRSessionManager::GetInstance() const { return m_instance; }
 const XrSession OpenXRSessionManager::GetSession() const { return m_session; }
 const XrSystemId OpenXRSessionManager::GetSystemId() const { return m_systemId; }
+
+std::vector<XrViewConfigurationView> OpenXRSessionManager::GetConfigViews(){
+  if (!m_configViews.empty()){
+    return m_configViews;
+  }
+  CHECK_MSG(m_viewConfigType == XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO, "Unsupported view configuration type");
+
+  // Query and cache view configuration views.
+  uint32_t viewCount;
+  CHECK_XRCMD(xrEnumerateViewConfigurationViews(m_instance, m_systemId, m_viewConfigType, 0, &viewCount, nullptr));
+  m_configViews.resize(viewCount, {XR_TYPE_VIEW_CONFIGURATION_VIEW});
+  CHECK_XRCMD(xrEnumerateViewConfigurationViews(m_instance, m_systemId, m_viewConfigType, viewCount, &viewCount,
+                                                m_configViews.data()));
+  return m_configViews;
+}
+
+//std::vector<XrSwapchain> OpenXRSessionManager::GetSwapchains() {
+//
+//  if (!m_swapChains.empty()){
+//    return m_swapChains;
+//  }
+//
+//  auto configViews = GetConfigViews();
+//
+//  // Create a swapchain for each view
+//  for (auto & configView : configViews) {
+//    XrSwapchain swapChain = nullptr;
+//    XrSwapchainCreateInfo createInfo{XR_TYPE_SWAPCHAIN_CREATE_INFO};
+//    createInfo.arraySize = 1;
+//    createInfo.format = VK_FORMAT_B8G8R8A8_UNORM; // Hard coding for now
+//    createInfo.width = configView.recommendedImageRectWidth;
+//    createInfo.height = configView.recommendedImageRectHeight;
+//    createInfo.mipCount = 1;
+//    createInfo.faceCount = 1;
+//    createInfo.sampleCount = configView.recommendedSwapchainSampleCount;
+//    createInfo.usageFlags = XR_SWAPCHAIN_USAGE_SAMPLED_BIT | XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT;
+//
+//    CHECK_XRCMD(xrCreateSwapchain(m_session, &createInfo, &swapChain));
+//
+//    m_swapChains.push_back(swapChain);
+//  }
+//}
 
 void OpenXRSessionManager::LogInstanceInfo() {
   if (m_instance == XR_NULL_HANDLE){
