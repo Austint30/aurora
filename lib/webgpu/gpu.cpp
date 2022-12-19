@@ -549,6 +549,11 @@ bool initialize(AuroraBackend auroraBackend) {
     return false;
   }
 
+  if (g_config.startOpenXR && g_backendBinding->GetXrGraphicsBinding()) {
+    XrBaseInStructure* graphicsBinding = (XrBaseInStructure*)(g_backendBinding->GetXrGraphicsBinding());
+    xr::g_OpenXRSessionManager->initializeSession(*graphicsBinding);
+  }
+
   auto swapChainFormat = static_cast<wgpu::TextureFormat>(g_backendBinding->GetPreferredSwapChainTextureFormat());
 #else
   auto swapChainFormat = g_surface.GetPreferredFormat(g_adapter);
@@ -579,10 +584,6 @@ bool initialize(AuroraBackend auroraBackend) {
   create_copy_pipeline();
   resize_swapchain(size.fb_width, size.fb_height, true);
 
-  if (g_config.startOpenXR && g_backendBinding->GetXrGraphicsBinding()) {
-    XrBaseInStructure* graphicsBinding = (XrBaseInStructure*)(g_backendBinding->GetXrGraphicsBinding());
-    xr::g_OpenXRSessionManager->initializeSession(*graphicsBinding);
-  }
   return true;
 }
 

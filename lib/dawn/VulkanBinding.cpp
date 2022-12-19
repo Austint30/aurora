@@ -100,7 +100,7 @@ class VulkanBinding : public BackendBinding {
 public:
   VulkanBinding(SDL_Window* window, WGPUDevice device) : BackendBinding(window, device) {}
 
-  WGPUTextureFormat GetPreferredSwapChainTextureFormat() {
+  virtual WGPUTextureFormat GetPreferredSwapChainTextureFormat() {
     if (m_swapChainImpl.userData == nullptr) {
       CreateSwapChainImpl();
     }
@@ -252,6 +252,15 @@ public:
     buildXrGraphicsBinding();
   }
 
+  WGPUTextureFormat GetPreferredSwapChainTextureFormat() override {
+    if (m_swapChainImpl.userData == nullptr) {
+      CreateSwapChainImpl();
+    }
+
+    xr::XrSwapChainImplVk* impl = reinterpret_cast<xr::XrSwapChainImplVk*>(m_swapChainImpl.userData);
+    return static_cast<WGPUTextureFormat>(impl->GetPreferredFormat());
+  }
+
 private:
   void buildXrGraphicsBinding(){
 
@@ -268,11 +277,12 @@ private:
   }
 
   void CreateSwapChainImpl() override {
-    VkSurfaceKHR surface = VK_NULL_HANDLE;
-    ASSERT(SDL_Vulkan_CreateSurface(m_window, dawn::native::vulkan::GetInstance(m_device), &surface),
-           "Failed to create Vulkan surface: {}", SDL_GetError());
+//    VkSurfaceKHR surface = VK_NULL_HANDLE;
+//    ASSERT(SDL_Vulkan_CreateSurface(m_window, dawn::native::vulkan::GetInstance(m_device), &surface),
+//           "Failed to create Vulkan surface: {}", SDL_GetError());
 //    m_swapChainImpl = dawn::native::vulkan::CreateNativeSwapChainImpl(m_device, surface);
     m_swapChainImpl = CreateSwapChainImplementation(new xr::XrSwapChainImplVk());
+    m_swapChainImpl.textureUsage = WGPUTextureUsage_Present;
   }
 };
 
