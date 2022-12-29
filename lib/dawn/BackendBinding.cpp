@@ -77,12 +77,22 @@ bool DiscoverAdapter(dawn::native::Instance* instance, SDL_Window* window, wgpu:
 #if defined(DAWN_ENABLE_BACKEND_VULKAN)
   case wgpu::BackendType::Vulkan: {
     if (xr::g_OpenXRSessionManager != nullptr){
-      auto *vkCreateInstanceCallback = +[](const VkInstanceCreateInfo* vkCreateInfo, const VkAllocationCallbacks* allocator, VkInstance* vkInstance, PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr) {
+      auto *vkCreateInstanceCallback = +[](VkInstanceCreateInfo* vkCreateInfo, const VkAllocationCallbacks* allocator, VkInstance* vkInstance, PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr) {
         XrInstance xrInstance = xr::g_OpenXRSessionManager->GetInstance();
         XrSystemId xrSystemId = xr::g_OpenXRSessionManager->GetSystemId();
 
         PFN_xrCreateVulkanInstanceKHR createVulkanInstancePFN = nullptr;
         xrGetInstanceProcAddr(xrInstance, "xrCreateVulkanInstanceKHR", reinterpret_cast<PFN_xrVoidFunction*>(&createVulkanInstancePFN));
+
+        std::vector<const char*> validationLayerNames;
+
+#if true // TODO: Change this to only push when in DEBUG mode
+        validationLayerNames.push_back("VK_LAYER_KHRONOS_validation");
+        xr::Log.report(LOG_INFO, FMT_STRING("Enabling vulkan validation layer \"{}\""), validationLayerNames[0]);
+#endif
+
+        vkCreateInfo->enabledLayerCount = validationLayerNames.size();
+        vkCreateInfo->ppEnabledLayerNames = validationLayerNames.data();
 
         VkResult vkResult;
 
@@ -115,7 +125,7 @@ bool DiscoverAdapter(dawn::native::Instance* instance, SDL_Window* window, wgpu:
 
         return std::move(physicalDevices);
       };
-      auto *vkCreateDevice = +[](VkPhysicalDevice physicalDevice, const VkDeviceCreateInfo* deviceCreateInfo, const VkAllocationCallbacks* allocator, VkDevice* vkDevice, PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr){
+      auto *vkCreateDevice = +[](VkPhysicalDevice physicalDevice, VkDeviceCreateInfo* deviceCreateInfo, const VkAllocationCallbacks* allocator, VkDevice* vkDevice, PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr){
         XrInstance xrInstance = xr::g_OpenXRSessionManager->GetInstance();
         XrSystemId xrSystemId = xr::g_OpenXRSessionManager->GetSystemId();
 
@@ -123,13 +133,12 @@ bool DiscoverAdapter(dawn::native::Instance* instance, SDL_Window* window, wgpu:
         // Call xrGetVulkanGraphicsRequirements2KHR because we have to for some reason ---------------------------------
         XrGraphicsRequirementsVulkan2KHR graphicsRequirements{XR_TYPE_GRAPHICS_REQUIREMENTS_VULKAN2_KHR};
         PFN_xrGetVulkanGraphicsRequirements2KHR xrGetVulkanGraphicsRequirements2PFN = nullptr;
-        xrGetInstanceProcAddr(xrInstance, "xrGetVulkanGraphicsRequirements2KHR", reinterpret_cast<PFN_xrVoidFunction*>(&xrGetVulkanGraphicsRequirements2PFN));
-
+        xr::CHECK_XRCMD(xrGetInstanceProcAddr(xrInstance, "xrGetVulkanGraphicsRequirements2KHR", reinterpret_cast<PFN_xrVoidFunction*>(&xrGetVulkanGraphicsRequirements2PFN)));
         xrGetVulkanGraphicsRequirements2PFN(xrInstance, xrSystemId, &graphicsRequirements);
         // -------------------------------------------------------------------------------------------------------------
 
         PFN_xrCreateVulkanDeviceKHR createVulkanDevicePFN = nullptr;
-        xrGetInstanceProcAddr(xrInstance, "xrCreateVulkanDeviceKHR", reinterpret_cast<PFN_xrVoidFunction*>(&createVulkanDevicePFN));
+        xr::CHECK_XRCMD(xrGetInstanceProcAddr(xrInstance, "xrCreateVulkanDeviceKHR", reinterpret_cast<PFN_xrVoidFunction*>(&createVulkanDevicePFN)));
 
         VkResult vkResult;
 
@@ -146,12 +155,13 @@ bool DiscoverAdapter(dawn::native::Instance* instance, SDL_Window* window, wgpu:
 
         return vkResult;
       };
-      dawn::native::vulkan::OverrideFunctions overrideFunctions = {
-          vkCreateInstanceCallback, gatherPhysicalDevicesCallback,
-          vkCreateDevice
-      };
+      dawn::native::vulkan::OverrideFunctions overrideFunctions =
+          reinterpret_cast<dawn::native::vulkan::OverrideFunctions>(new dawn::native::vulkan::OverrideFunctions);
+      overrideFunctions->overrideVkCreateInstance = vkCreateInstanceCallback;
+      overrideFunctions->overrideGatherPhysicalDevices = gatherPhysicalDevicesCallback;
+      overrideFunctions->overrideVkCreateDevice = vkCreateDevice;
 
-      auto options = dawn::native::vulkan::AdapterDiscoveryOptions(overrideFunctions);
+      auto options = dawn::native::vulkan::AdapterDiscoveryOptions(std::move(overrideFunctions));
       return instance->DiscoverAdapters(&options);
     };
     dawn::native::vulkan::AdapterDiscoveryOptions options;

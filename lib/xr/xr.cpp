@@ -166,6 +166,10 @@ void OpenXRSessionManager::initializeSession(XrBaseInStructure& graphicsBinding)
     XrSessionCreateInfo createInfo{XR_TYPE_SESSION_CREATE_INFO};
     createInfo.next = &graphicsBinding;
     createInfo.systemId = m_systemId;
+
+    PFN_xrCreateSession xrCreateSession = nullptr;
+    xr::CHECK_XRCMD(xrGetInstanceProcAddr(m_instance, "xrCreateSession", reinterpret_cast<PFN_xrVoidFunction*>(&xrCreateSession)));
+
     CHECK_XRCMD(xrCreateSession(m_instance, &createInfo, &m_session));
     Log.report(LOG_INFO, FMT_STRING("OpenXR session created successfully"));
   }

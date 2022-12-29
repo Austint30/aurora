@@ -24,6 +24,21 @@
 
 namespace aurora::xr {
 
+int64_t SelectColorSwapchainFormat(const std::vector<int64_t>& runtimeFormats) {
+  // List of supported color swapchain formats.
+  constexpr int64_t SupportedColorSwapchainFormats[] = {VK_FORMAT_B8G8R8A8_SRGB, VK_FORMAT_R8G8B8A8_SRGB,
+                                                        VK_FORMAT_B8G8R8A8_UNORM, VK_FORMAT_R8G8B8A8_UNORM};
+
+  auto swapchainFormatIt =
+      std::find_first_of(runtimeFormats.begin(), runtimeFormats.end(), std::begin(SupportedColorSwapchainFormats),
+                         std::end(SupportedColorSwapchainFormats));
+  if (swapchainFormatIt == runtimeFormats.end()) {
+    THROW("No runtime swapchain format supported for color swapchain");
+  }
+
+  return *swapchainFormatIt;
+}
+
 //namespace {
 //bool chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes,
 //                           bool turnOffVsync,
@@ -146,12 +161,21 @@ DawnSwapChainError XrSwapChainImplVk::Configure(WGPUTextureFormat format,
     auto configViews = g_OpenXRSessionManager->GetConfigViews();
     auto session = g_OpenXRSessionManager->GetSession();
 
+    uint32_t swapchainFormatCount;
+    CHECK_XRCMD(xrEnumerateSwapchainFormats(session, 0, &swapchainFormatCount, nullptr));
+    std::vector<int64_t> swapchainFormats(swapchainFormatCount);
+    CHECK_XRCMD(xrEnumerateSwapchainFormats(session, (uint32_t)swapchainFormats.size(), &swapchainFormatCount,
+                                            swapchainFormats.data()));
+    CHECK(swapchainFormatCount == swapchainFormats.size());
+
+    int64_t swapchainFormat = SelectColorSwapchainFormat(swapchainFormats);
+
     // Create a swapchain for each view
     for (auto & configView : configViews) {
         XrSwapchain swapChain = nullptr;
         XrSwapchainCreateInfo createInfo{XR_TYPE_SWAPCHAIN_CREATE_INFO};
         createInfo.arraySize = 1;
-        createInfo.format = VK_FORMAT_B8G8R8A8_UNORM; // Hard coding for now
+        createInfo.format = swapchainFormat; // Hard coding for now
         createInfo.width = configView.recommendedImageRectWidth;
         createInfo.height = configView.recommendedImageRectHeight;
         createInfo.mipCount = 1;
@@ -200,7 +224,7 @@ DawnSwapChainError XrSwapChainImplVk::GetNextTexture(DawnSwapChainNextTexture* n
     }
 
     // Looks like Dawn only works with one image at a time at the moment. So, just give it the first view image.
-    nextTexture->texture.u64 = reinterpret_cast<uint64_t>(&m_swapChainImages[imageIndexes[0]]);
+    nextTexture->texture.u64 = reinterpret_cast<uint64_t>(m_swapChainImages[imageIndexes[0]].image);
 
     return DAWN_SWAP_CHAIN_NO_ERROR;
 }
@@ -276,6 +300,7 @@ DawnSwapChainError XrSwapChainImplVk::Present() {
         XrSwapchainImageReleaseInfo releaseInfo{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
         CHECK_XRCMD(xrReleaseSwapchainImage(swapChain, &releaseInfo));
     }
+    return DAWN_SWAP_CHAIN_NO_ERROR;
 }
 
 wgpu::TextureFormat XrSwapChainImplVk::GetPreferredFormat() const {
