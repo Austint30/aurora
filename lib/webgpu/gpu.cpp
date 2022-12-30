@@ -334,29 +334,6 @@ static wgpu::BackendType to_wgpu_backend(AuroraBackend backend) {
   }
 }
 
-static std::vector<std::string> aurora_backend_to_xr_ext(AuroraBackend backend){
-  switch (backend) {
-    case BACKEND_WEBGPU: return {};
-#ifdef XR_USE_GRAPHICS_API_D3D12
-    case BACKEND_D3D12: return {XR_KHR_D3D12_ENABLE_EXTENSION_NAME};
-#endif
-#ifdef XR_USE_GRAPHICS_API_METAL
-    case BACKEND_METAL: return {}; // METAL NOT IMPLEMENTED YET
-#endif
-#ifdef XR_USE_GRAPHICS_API_VULKAN
-    case BACKEND_VULKAN: return {XR_KHR_VULKAN_ENABLE2_EXTENSION_NAME};
-#endif
-#ifdef XR_USE_GRAPHICS_API_OPENGL
-    case BACKEND_OPENGL: return {XR_KHR_OPENGL_ENABLE_EXTENSION_NAME};
-#endif
-#ifdef XR_USE_GRAPHICS_API_OPENGL_ES
-    case BACKEND_OPENGLES: return {XR_KHR_OPENGL_ES_ENABLE_EXTENSION_NAME};
-#endif
-    default:
-      return {};
-  }
-}
-
 bool initialize(AuroraBackend auroraBackend) {
 #ifdef WEBGPU_DAWN
   if (!g_dawnInstance) {
@@ -381,16 +358,6 @@ bool initialize(AuroraBackend auroraBackend) {
   // D3D12's debug layer is very slow
   g_dawnInstance->EnableBackendValidation(backend != WGPUBackendType::D3D12);
 #endif
-
-  if (g_config.startOpenXR) {
-    Log.report(LOG_INFO, FMT_STRING("Enabling OpenXR support"));
-    xr::OpenXROptions options;
-    // Create session manager instance
-    std::shared_ptr<xr::OpenXRSessionManager> sesMgr = xr::InstantiateOXRSessionManager(options);
-
-    sesMgr->createInstance(aurora_backend_to_xr_ext(auroraBackend));
-    sesMgr->initializeSystem();
-  }
 
 #ifdef WEBGPU_DAWN
   SDL_Window* window = window::get_sdl_window();
@@ -543,10 +510,19 @@ bool initialize(AuroraBackend auroraBackend) {
   g_queue = g_device.GetQueue();
 
 #if WEBGPU_DAWN
-  g_backendBinding =
-      std::unique_ptr<utils::BackendBinding>(utils::CreateBinding(g_backendType, window, g_device.Get()));
-  if (!g_backendBinding) {
-    return false;
+  if (g_config.startOpenXR) {
+    g_backendBinding =
+        std::unique_ptr<utils::BackendBinding>(utils::CreateXrBinding(g_backendType, window, g_device.Get()));
+    if (!g_backendBinding) {
+      return false;
+    }
+  }
+  else {
+    g_backendBinding =
+        std::unique_ptr<utils::BackendBinding>(utils::CreateBinding(g_backendType, window, g_device.Get()));
+    if (!g_backendBinding) {
+      return false;
+    }
   }
 
   if (g_config.startOpenXR && g_backendBinding->GetXrGraphicsBinding()) {
@@ -565,22 +541,45 @@ bool initialize(AuroraBackend auroraBackend) {
   }
   Log.report(LOG_INFO, FMT_STRING("Using swapchain format {}"), magic_enum::enum_name(swapChainFormat));
   const auto size = window::get_window_size();
-  g_graphicsConfig = GraphicsConfig{
+
+  if (g_config.startOpenXR) {
+
+    auto configViews = xr::g_OpenXRSessionManager->GetConfigViews();
+
+    g_graphicsConfig = GraphicsConfig {
       .swapChainDescriptor =
           wgpu::SwapChainDescriptor{
               .usage = wgpu::TextureUsage::RenderAttachment,
               .format = swapChainFormat,
-              .width = size.fb_width,
-              .height = size.fb_height,
+              .width = configViews[0].recommendedImageRectWidth,
+              .height = configViews[0].recommendedImageRectHeight,
               .presentMode = wgpu::PresentMode::Fifo,
 #ifdef WEBGPU_DAWN
               .implementation = g_backendBinding->GetSwapChainImplementation(),
 #endif
           },
-      .depthFormat = wgpu::TextureFormat::Depth32Float,
-      .msaaSamples = g_config.msaa,
+      .depthFormat = wgpu::TextureFormat::Depth32Float, .msaaSamples = g_config.msaa,
       .textureAnisotropy = g_config.maxTextureAnisotropy,
-  };
+    };
+  } else {
+    g_graphicsConfig = GraphicsConfig{
+        .swapChainDescriptor =
+            wgpu::SwapChainDescriptor{
+                .usage = wgpu::TextureUsage::RenderAttachment,
+                .format = swapChainFormat,
+                .width = size.fb_width,
+                .height = size.fb_height,
+                .presentMode = wgpu::PresentMode::Fifo,
+#ifdef WEBGPU_DAWN
+                .implementation = g_backendBinding->GetSwapChainImplementation(),
+#endif
+            },
+        .depthFormat = wgpu::TextureFormat::Depth32Float,
+        .msaaSamples = g_config.msaa,
+        .textureAnisotropy = g_config.maxTextureAnisotropy,
+    };
+  }
+
   create_copy_pipeline();
   resize_swapchain(size.fb_width, size.fb_height, true);
 
@@ -619,12 +618,20 @@ void shutdown() {
 }
 
 void resize_swapchain(uint32_t width, uint32_t height, bool force) {
+
   if (!force && g_graphicsConfig.swapChainDescriptor.width == width &&
       g_graphicsConfig.swapChainDescriptor.height == height) {
     return;
   }
-  g_graphicsConfig.swapChainDescriptor.width = width;
-  g_graphicsConfig.swapChainDescriptor.height = height;
+  if (g_config.startOpenXR) {
+    auto configViews = xr::g_OpenXRSessionManager->GetConfigViews();
+    g_graphicsConfig.swapChainDescriptor.width = configViews[0].recommendedImageRectWidth;
+    g_graphicsConfig.swapChainDescriptor.height = configViews[0].recommendedImageRectHeight;
+  }else {
+    g_graphicsConfig.swapChainDescriptor.width = width;
+    g_graphicsConfig.swapChainDescriptor.height = height;
+  }
+
 #ifdef WEBGPU_DAWN
   if (!g_swapChain) {
     g_swapChain = g_device.CreateSwapChain(g_surface, &g_graphicsConfig.swapChainDescriptor);

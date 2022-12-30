@@ -165,13 +165,11 @@ private:
 };
 
 BackendBinding* CreateVulkanBinding(SDL_Window* window, WGPUDevice device) {
-  if (xr::g_OpenXRSessionManager){
-    return new XrVulkanBinding(window, device);
-  }
-  else
-  {
-    return new VulkanBinding(window, device);
-  }
+  return new VulkanBinding(window, device);
+}
+
+BackendBinding* CreateXrVulkanBinding(SDL_Window* window, WGPUDevice device){
+  return new XrVulkanBinding(window, device);
 }
 
 }; // namespace aurora::webgpu::utils

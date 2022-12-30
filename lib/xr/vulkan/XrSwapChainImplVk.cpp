@@ -26,8 +26,7 @@ namespace aurora::xr {
 
 int64_t SelectColorSwapchainFormat(const std::vector<int64_t>& runtimeFormats) {
   // List of supported color swapchain formats.
-  constexpr int64_t SupportedColorSwapchainFormats[] = {VK_FORMAT_B8G8R8A8_SRGB, VK_FORMAT_R8G8B8A8_SRGB,
-                                                        VK_FORMAT_B8G8R8A8_UNORM, VK_FORMAT_R8G8B8A8_UNORM};
+  constexpr int64_t SupportedColorSwapchainFormats[] = {VK_FORMAT_B8G8R8A8_UNORM, VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_B8G8R8A8_SRGB, VK_FORMAT_R8G8B8A8_SRGB};
 
   auto swapchainFormatIt =
       std::find_first_of(runtimeFormats.begin(), runtimeFormats.end(), std::begin(SupportedColorSwapchainFormats),
@@ -168,14 +167,15 @@ DawnSwapChainError XrSwapChainImplVk::Configure(WGPUTextureFormat format,
                                             swapchainFormats.data()));
     CHECK(swapchainFormatCount == swapchainFormats.size());
 
-    int64_t swapchainFormat = SelectColorSwapchainFormat(swapchainFormats);
+//    int64_t swapchainFormat = SelectColorSwapchainFormat(swapchainFormats);
+      int64_t swapchainFormat = VK_FORMAT_B8G8R8A8_UNORM; // Hard coding for now
 
     // Create a swapchain for each view
     for (auto & configView : configViews) {
         XrSwapchain swapChain = nullptr;
         XrSwapchainCreateInfo createInfo{XR_TYPE_SWAPCHAIN_CREATE_INFO};
         createInfo.arraySize = 1;
-        createInfo.format = swapchainFormat; // Hard coding for now
+        createInfo.format = swapchainFormat;
         createInfo.width = configView.recommendedImageRectWidth;
         createInfo.height = configView.recommendedImageRectHeight;
         createInfo.mipCount = 1;

@@ -4,6 +4,7 @@
 #include "webgpu/gpu.hpp"
 #include "input.hpp"
 #include "internal.hpp"
+#include "aurora/xr/xr.hpp"
 
 #include <aurora/event.h>
 #include <SDL.h>
@@ -32,7 +33,9 @@ static void resize_swapchain(bool force) noexcept {
     }
   }
   g_windowSize = size;
-  webgpu::resize_swapchain(size.fb_width, size.fb_height);
+  if (!g_config.startOpenXR){
+    webgpu::resize_swapchain(size.fb_width, size.fb_height);
+  }
 }
 
 const AuroraEvent* poll_events() {
@@ -153,6 +156,11 @@ bool create_window(AuroraBackend backend) {
   if (width == 0 || height == 0) {
     width = 1280;
     height = 960;
+  }
+  if (g_config.startOpenXR){
+    auto configViews = xr::g_OpenXRSessionManager->GetConfigViews();
+    width = configViews[0].recommendedImageRectWidth;
+    height = configViews[0].recommendedImageRectHeight;
   }
 #endif
   g_window = SDL_CreateWindow(g_config.appName, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, flags);

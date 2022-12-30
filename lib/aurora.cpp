@@ -5,6 +5,7 @@
 #include "internal.hpp"
 #include "webgpu/gpu.hpp"
 #include "window.hpp"
+#include "aurora/xr/xr.hpp"
 
 #include <SDL_filesystem.h>
 #include <imgui.h>
@@ -45,6 +46,29 @@ constexpr std::array PreferredBackendOrder{
 
 static bool g_initialFrame = false;
 
+static std::vector<std::string> aurora_backend_to_xr_ext(AuroraBackend backend){
+  switch (backend) {
+  case BACKEND_WEBGPU: return {};
+#ifdef XR_USE_GRAPHICS_API_D3D12
+  case BACKEND_D3D12: return {XR_KHR_D3D12_ENABLE_EXTENSION_NAME};
+#endif
+#ifdef XR_USE_GRAPHICS_API_METAL
+  case BACKEND_METAL: return {}; // METAL NOT IMPLEMENTED YET
+#endif
+#ifdef XR_USE_GRAPHICS_API_VULKAN
+  case BACKEND_VULKAN: return {XR_KHR_VULKAN_ENABLE2_EXTENSION_NAME};
+#endif
+#ifdef XR_USE_GRAPHICS_API_OPENGL
+  case BACKEND_OPENGL: return {XR_KHR_OPENGL_ENABLE_EXTENSION_NAME};
+#endif
+#ifdef XR_USE_GRAPHICS_API_OPENGL_ES
+  case BACKEND_OPENGLES: return {XR_KHR_OPENGL_ES_ENABLE_EXTENSION_NAME};
+#endif
+  default:
+    return {};
+  }
+}
+
 static AuroraInfo initialize(int argc, char* argv[], const AuroraConfig& config) noexcept {
   g_config = config;
   if (g_config.appName == nullptr) {
@@ -59,10 +83,22 @@ static AuroraInfo initialize(int argc, char* argv[], const AuroraConfig& config)
   if (g_config.maxTextureAnisotropy == 0) {
     g_config.maxTextureAnisotropy = 16;
   }
+
   window::initialize();
 
   /* Attempt to create a window using the calling application's desired backend */
   AuroraBackend selectedBackend = config.desiredBackend;
+
+  if (g_config.startOpenXR) {
+    Log.report(LOG_INFO, FMT_STRING("Enabling OpenXR support"));
+    xr::OpenXROptions options;
+    // Create session manager instance
+    std::shared_ptr<xr::OpenXRSessionManager> sesMgr = xr::InstantiateOXRSessionManager(options);
+
+    sesMgr->createInstance(aurora_backend_to_xr_ext(selectedBackend));
+    sesMgr->initializeSystem();
+  }
+
   bool windowCreated = false;
   if (selectedBackend != BACKEND_AUTO && window::create_window(selectedBackend)) {
     if (webgpu::initialize(selectedBackend)) {
