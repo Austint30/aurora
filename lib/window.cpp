@@ -22,7 +22,7 @@ static inline bool operator==(const AuroraWindowSize& lhs, const AuroraWindowSiz
          lhs.fb_height == rhs.fb_height && lhs.scale == rhs.scale;
 }
 
-static void resize_swapchain(bool force) noexcept {
+static void resize_swapchain(wgpu::SwapChain swapChain, bool force) noexcept {
   const auto size = get_window_size();
   if (!force && size == g_windowSize) {
     return;
@@ -34,7 +34,7 @@ static void resize_swapchain(bool force) noexcept {
   }
   g_windowSize = size;
   if (!g_config.startOpenXR){
-    webgpu::resize_swapchain(size.fb_width, size.fb_height);
+    webgpu::resize_swapchain(swapChain, size.fb_width, size.fb_height);
   }
 }
 

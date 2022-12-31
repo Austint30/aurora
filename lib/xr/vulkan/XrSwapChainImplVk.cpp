@@ -24,18 +24,43 @@
 
 namespace aurora::xr {
 
-int64_t SelectColorSwapchainFormat(const std::vector<int64_t>& runtimeFormats) {
-  // List of supported color swapchain formats.
-  constexpr int64_t SupportedColorSwapchainFormats[] = {VK_FORMAT_B8G8R8A8_UNORM, VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_B8G8R8A8_SRGB, VK_FORMAT_R8G8B8A8_SRGB};
+// Converts the Dawn usage flags to Vulkan usage flags. Also needs the format to choose
+// between color and depth attachment usages.
+XrSwapchainUsageFlags OpenXRImageUsage(wgpu::TextureUsage usage) {
+  XrSwapchainUsageFlags flags = 0;
 
-  auto swapchainFormatIt =
-      std::find_first_of(runtimeFormats.begin(), runtimeFormats.end(), std::begin(SupportedColorSwapchainFormats),
-                         std::end(SupportedColorSwapchainFormats));
-  if (swapchainFormatIt == runtimeFormats.end()) {
-    THROW("No runtime swapchain format supported for color swapchain");
+  if (usage & wgpu::TextureUsage::CopySrc) {
+    flags |= XR_SWAPCHAIN_USAGE_TRANSFER_SRC_BIT;
   }
+  if (usage & wgpu::TextureUsage::CopyDst) {
+    flags |= XR_SWAPCHAIN_USAGE_TRANSFER_DST_BIT;
+  }
+  if (usage & wgpu::TextureUsage::TextureBinding) {
+    flags |= XR_SWAPCHAIN_USAGE_SAMPLED_BIT;
+    // If the sampled texture is a depth/stencil texture, its image layout will be set
+    // to DEPTH_STENCIL_READ_ONLY_OPTIMAL in order to support readonly depth/stencil
+    // attachment. That layout requires DEPTH_STENCIL_ATTACHMENT_BIT image usage.
+    /*
+    if (format.HasDepthOrStencil() && format.isRenderable) {
+      flags |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+    }
+     */
+  }
+//  if (usage & wgpu::TextureUsage::StorageBinding) {
+//    flags |= VK_IMAGE_USAGE_STORAGE_BIT;
+//  }
+  if (usage & wgpu::TextureUsage::RenderAttachment) {
+    /*
+    if (format.HasDepthOrStencil()) {
+      flags |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+    } else {
+     */
+      flags |= XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT;
+    //}
+  }
+//  flags |= XR_SWAPCHAIN_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 
-  return *swapchainFormatIt;
+  return flags;
 }
 
 //namespace {
@@ -181,7 +206,7 @@ DawnSwapChainError XrSwapChainImplVk::Configure(WGPUTextureFormat format,
         createInfo.mipCount = 1;
         createInfo.faceCount = 1;
         createInfo.sampleCount = configView.recommendedSwapchainSampleCount;
-        createInfo.usageFlags = XR_SWAPCHAIN_USAGE_SAMPLED_BIT | XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT;
+        createInfo.usageFlags = OpenXRImageUsage(static_cast<wgpu::TextureUsage>(usage));
 
         CHECK_XRCMD(xrCreateSwapchain(session, &createInfo, &swapChain));
 

@@ -26,11 +26,38 @@ struct TextureWithSampler {
   wgpu::Sampler sampler;
 };
 
+enum SwapChainType {
+  PRIMARY, // For non-vr mode
+  MIRROR, // For VR mirror window
+  OPENXR_LEFT, // Left eye
+  OPENXR_RIGHT // Right eye
+};
+
+struct SwapChainContext {
+  wgpu::SwapChain swapChain;
+  GraphicsConfig graphicsConfig;
+  SwapChainType type;
+
+  bool operator==(const SwapChainContext& st) {
+      return type == st.type;
+  };
+};
+
+bool can_render_imgui(SwapChainContext swapChainCtx){
+  switch (swapChainCtx.type) {
+  case PRIMARY:
+  case MIRROR:
+      return true;
+  default:
+      return false;
+  }
+}
+
 extern wgpu::Device g_device;
 extern wgpu::Queue g_queue;
-extern wgpu::SwapChain g_swapChain;
+extern std::vector<SwapChainContext> g_swapChains;
 extern wgpu::BackendType g_backendType;
-extern GraphicsConfig g_graphicsConfig;
+extern std::vector<GraphicsConfig> g_graphicsConfigs;
 extern TextureWithSampler g_frameBuffer;
 extern TextureWithSampler g_frameBufferResolved;
 extern TextureWithSampler g_depthBuffer;
@@ -39,8 +66,11 @@ extern wgpu::BindGroup g_CopyBindGroup;
 extern wgpu::Instance g_instance;
 
 bool initialize(AuroraBackend backend);
-void initialize_openxr(utils::BackendBinding& backendBinding);
+void create_graphicsconfig();
 void shutdown();
-void resize_swapchain(uint32_t width, uint32_t height, bool force = false);
+bool add_swapchain(GraphicsConfig graphicsConfig, SwapChainType swapChainType, SwapChainContext& newSwapChain);
+void resize_swapchain(SwapChainContext swapChainCtx, uint32_t width, uint32_t height, bool force);
 TextureWithSampler create_render_texture(bool multisampled);
+void create_graphicsconfig(utils::BackendBinding& backendBinding, bool useMirrorWindow);
+void create_xr_graphicsconfig(utils::BackendBinding& backendBinding);
 } // namespace aurora::webgpu

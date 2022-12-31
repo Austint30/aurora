@@ -22,9 +22,12 @@ static Module Log("aurora::gpu");
 
 wgpu::Device g_device;
 wgpu::Queue g_queue;
-wgpu::SwapChain g_swapChain;
 wgpu::BackendType g_backendType;
-GraphicsConfig g_graphicsConfig;
+
+// Should be two elements for each eye in HMD plus one for mirror window, one if not using OpenXR.
+std::vector<SwapChainContext> g_swapChains;
+
+std::vector<GraphicsConfig> g_graphicsConfigs;
 TextureWithSampler g_frameBuffer;
 TextureWithSampler g_frameBufferResolved;
 TextureWithSampler g_depthBuffer;
@@ -37,7 +40,7 @@ wgpu::BindGroup g_CopyBindGroup;
 #ifdef WEBGPU_DAWN
 static std::unique_ptr<dawn::native::Instance> g_dawnInstance;
 static dawn::native::Adapter g_adapter;
-static std::unique_ptr<utils::BackendBinding> g_backendBinding;
+static std::vector<std::unique_ptr<utils::BackendBinding>> g_backendBinding;
 #else
 wgpu::Instance g_instance;
 static wgpu::Adapter g_adapter;
@@ -47,14 +50,14 @@ static wgpu::AdapterProperties g_adapterProperties;
 
 TextureWithSampler create_render_texture(bool multisampled) {
   const wgpu::Extent3D size{
-      .width = g_graphicsConfig.swapChainDescriptor.width,
-      .height = g_graphicsConfig.swapChainDescriptor.height,
+      .width = g_graphicsConfigs[0].swapChainDescriptor.width,
+      .height = g_graphicsConfigs[0].swapChainDescriptor.height,
       .depthOrArrayLayers = 1,
   };
-  const auto format = g_graphicsConfig.swapChainDescriptor.format;
+  const auto format = g_graphicsConfigs[0].swapChainDescriptor.format;
   uint32_t sampleCount = 1;
   if (multisampled) {
-    sampleCount = g_graphicsConfig.msaaSamples;
+    sampleCount = g_graphicsConfigs[0].msaaSamples;
   }
   const wgpu::TextureDescriptor textureDescriptor{
       .label = "Render texture",
@@ -101,11 +104,11 @@ TextureWithSampler create_render_texture(bool multisampled) {
 
 static TextureWithSampler create_depth_texture() {
   const wgpu::Extent3D size{
-      .width = g_graphicsConfig.swapChainDescriptor.width,
-      .height = g_graphicsConfig.swapChainDescriptor.height,
+      .width = g_graphicsConfig[0].swapChainDescriptor.width,
+      .height = g_graphicsConfig[0].swapChainDescriptor.height,
       .depthOrArrayLayers = 1,
   };
-  const auto format = g_graphicsConfig.depthFormat;
+  const auto format = g_graphicsConfig[0].depthFormat;
   const wgpu::TextureDescriptor textureDescriptor{
       .label = "Depth texture",
       .usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::TextureBinding,
@@ -113,7 +116,7 @@ static TextureWithSampler create_depth_texture() {
       .size = size,
       .format = format,
       .mipLevelCount = 1,
-      .sampleCount = g_graphicsConfig.msaaSamples,
+      .sampleCount = g_graphicsConfig[0].msaaSamples,
   };
   auto texture = g_device.CreateTexture(&textureDescriptor);
 
@@ -191,7 +194,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
   };
   auto module = g_device.CreateShaderModule(&moduleDescriptor);
   const std::array colorTargets{wgpu::ColorTargetState{
-      .format = g_graphicsConfig.swapChainDescriptor.format,
+      .format = g_graphicsConfigs[0].swapChainDescriptor.format,
       .writeMask = wgpu::ColorWriteMask::All,
   }};
   const wgpu::FragmentState fragmentState{
@@ -254,11 +257,11 @@ void create_copy_bind_group() {
   const std::array bindGroupEntries{
       wgpu::BindGroupEntry{
           .binding = 0,
-          .sampler = g_graphicsConfig.msaaSamples > 1 ? g_frameBufferResolved.sampler : g_frameBuffer.sampler,
+          .sampler = g_graphicsConfigs[0].msaaSamples > 1 ? g_frameBufferResolved.sampler : g_frameBuffer.sampler,
       },
       wgpu::BindGroupEntry{
           .binding = 1,
-          .textureView = g_graphicsConfig.msaaSamples > 1 ? g_frameBufferResolved.view : g_frameBuffer.view,
+          .textureView = g_graphicsConfigs[0].msaaSamples > 1 ? g_frameBufferResolved.view : g_frameBuffer.view,
       },
   };
   const wgpu::BindGroupDescriptor bindGroupDescriptor{
@@ -509,28 +512,49 @@ bool initialize(AuroraBackend auroraBackend) {
   g_device.SetDeviceLostCallback(nullptr, nullptr);
   g_queue = g_device.GetQueue();
 
-#if WEBGPU_DAWN
   if (g_config.startOpenXR) {
-    g_backendBinding =
-        std::unique_ptr<utils::BackendBinding>(utils::CreateXrBinding(g_backendType, window, g_device.Get()));
-    if (!g_backendBinding) {
-      return false;
-    }
-  }
-  else {
-    g_backendBinding =
-        std::unique_ptr<utils::BackendBinding>(utils::CreateBinding(g_backendType, window, g_device.Get()));
-    if (!g_backendBinding) {
+    // Use OpenXR binding variant as main BackendBinding, and non-vr version as mirror binding.
+    g_backendBinding.push_back(
+        std::unique_ptr<utils::BackendBinding>(utils::CreateXrBinding(g_backendType, window, g_device.Get()))
+    );
+    if (g_backendBinding.size() == 0) {
       return false;
     }
   }
 
-  if (g_config.startOpenXR && g_backendBinding->GetXrGraphicsBinding()) {
-    XrBaseInStructure* graphicsBinding = (XrBaseInStructure*)(g_backendBinding->GetXrGraphicsBinding());
+  g_backendBinding.push_back(
+      std::unique_ptr<utils::BackendBinding>(utils::CreateBinding(g_backendType, window, g_device.Get()))
+  );
+
+  if (
+      (g_backendBinding.size() == 1 && g_config.startOpenXR) ||
+      (g_backendBinding.size() == 0)
+      ) {
+    return false;
+  }
+
+  if (g_config.startOpenXR && g_backendBinding[0]->GetXrGraphicsBinding()) {
+    XrBaseInStructure* graphicsBinding = (XrBaseInStructure*)(g_backendBinding[0]->GetXrGraphicsBinding());
     xr::g_OpenXRSessionManager->initializeSession(*graphicsBinding);
   }
 
-  auto swapChainFormat = static_cast<wgpu::TextureFormat>(g_backendBinding->GetPreferredSwapChainTextureFormat());
+  if (g_config.startOpenXR) {
+    create_xr_graphicsconfig(*g_backendBinding[0]);
+    create_graphicsconfig(*g_backendBinding[1], true);
+  }
+  else {
+    create_graphicsconfig(*g_backendBinding[0], false);
+  }
+
+  create_copy_pipeline();
+
+  return true;
+}
+
+// Non VR (when useMirrorWindow is false)
+void create_graphicsconfig(utils::BackendBinding& backendBinding, bool useMirrorWindow) {
+#if WEBGPU_DAWN
+  auto swapChainFormat = static_cast<wgpu::TextureFormat>(backendBinding.GetPreferredSwapChainTextureFormat());
 #else
   auto swapChainFormat = g_surface.GetPreferredFormat(g_adapter);
 #endif
@@ -542,48 +566,76 @@ bool initialize(AuroraBackend auroraBackend) {
   Log.report(LOG_INFO, FMT_STRING("Using swapchain format {}"), magic_enum::enum_name(swapChainFormat));
   const auto size = window::get_window_size();
 
-  if (g_config.startOpenXR) {
-
-    auto configViews = xr::g_OpenXRSessionManager->GetConfigViews();
-
-    g_graphicsConfig = GraphicsConfig {
+  auto gc = GraphicsConfig {
       .swapChainDescriptor =
           wgpu::SwapChainDescriptor{
               .usage = wgpu::TextureUsage::RenderAttachment,
               .format = swapChainFormat,
-              .width = configViews[0].recommendedImageRectWidth,
-              .height = configViews[0].recommendedImageRectHeight,
+              .width = size.fb_width,
+              .height = size.fb_height,
               .presentMode = wgpu::PresentMode::Fifo,
 #ifdef WEBGPU_DAWN
-              .implementation = g_backendBinding->GetSwapChainImplementation(),
+              .implementation = backendBinding.GetSwapChainImplementation(),
 #endif
           },
       .depthFormat = wgpu::TextureFormat::Depth32Float, .msaaSamples = g_config.msaa,
       .textureAnisotropy = g_config.maxTextureAnisotropy,
-    };
-  } else {
-    g_graphicsConfig = GraphicsConfig{
+  };
+
+  g_graphicsConfigs.push_back(gc);
+  SwapChainContext swapChainContext;
+  SwapChainType swapChainType = useMirrorWindow ? SwapChainType::MIRROR : SwapChainType::PRIMARY;
+  add_swapchain(gc, swapChainType, swapChainContext);
+  resize_swapchain(swapChainContext, size.fb_width, size.fb_height, true);
+}
+
+// For VR
+void create_xr_graphicsconfig(utils::BackendBinding& backendBinding) {
+#if WEBGPU_DAWN
+  auto swapChainFormat = static_cast<wgpu::TextureFormat>(backendBinding.GetPreferredSwapChainTextureFormat());
+#else
+  auto swapChainFormat = g_surface.GetPreferredFormat(g_adapter);
+#endif
+  if (swapChainFormat == wgpu::TextureFormat::RGBA8UnormSrgb) {
+    swapChainFormat = wgpu::TextureFormat::RGBA8Unorm;
+  } else if (swapChainFormat == wgpu::TextureFormat::BGRA8UnormSrgb) {
+    swapChainFormat = wgpu::TextureFormat::BGRA8Unorm;
+  }
+
+  Log.report(LOG_INFO, FMT_STRING("(OPENXR) Using swapchain format {}"), magic_enum::enum_name(swapChainFormat));
+
+  std::vector<SwapChainType> types {OPENXR_LEFT, OPENXR_RIGHT};
+
+  auto configViews = xr::g_OpenXRSessionManager->GetConfigViews();
+
+  if (configViews.size() < 2) {
+    Log.report(LOG_FATAL, FMT_STRING("OpenXR has less than two configviews!"));
+  }
+
+  for (int i = 0; i < 2; ++i) {
+    SwapChainType swapChainType = types[i];
+    XrViewConfigurationView view = configViews[i];
+    auto gc = GraphicsConfig {
         .swapChainDescriptor =
             wgpu::SwapChainDescriptor{
                 .usage = wgpu::TextureUsage::RenderAttachment,
                 .format = swapChainFormat,
-                .width = size.fb_width,
-                .height = size.fb_height,
+                .width = view.recommendedImageRectWidth,
+                .height = view.recommendedImageRectHeight,
                 .presentMode = wgpu::PresentMode::Fifo,
 #ifdef WEBGPU_DAWN
-                .implementation = g_backendBinding->GetSwapChainImplementation(),
+                .implementation = backendBinding.GetSwapChainImplementation(),
 #endif
             },
-        .depthFormat = wgpu::TextureFormat::Depth32Float,
-        .msaaSamples = g_config.msaa,
+        .depthFormat = wgpu::TextureFormat::Depth32Float, .msaaSamples = g_config.msaa,
         .textureAnisotropy = g_config.maxTextureAnisotropy,
     };
+
+    g_graphicsConfigs.push_back(gc);
+    SwapChainContext swapChainContext;
+    add_swapchain(gc, swapChainType, swapChainContext);
+    resize_swapchain(swapChainContext, view.recommendedImageRectWidth, view.recommendedImageRectHeight, true);
   }
-
-  create_copy_pipeline();
-  resize_swapchain(size.fb_width, size.fb_height, true);
-
-  return true;
 }
 
 /*
@@ -617,26 +669,39 @@ void shutdown() {
 #endif
 }
 
-void resize_swapchain(uint32_t width, uint32_t height, bool force) {
+bool add_swapchain(GraphicsConfig graphicsConfig, SwapChainType swapChainType, SwapChainContext& newSwapChain) {
+  SwapChainContext ctx;
+  ctx.swapChain = g_device.CreateSwapChain(g_surface, &graphicsConfig.swapChainDescriptor);
+  ctx.type = swapChainType;
+  ctx.graphicsConfig = graphicsConfig;
 
-  if (!force && g_graphicsConfig.swapChainDescriptor.width == width &&
-      g_graphicsConfig.swapChainDescriptor.height == height) {
+  if (std::find(g_swapChains.begin(), g_swapChains.end(), ctx) != g_swapChains.end()){
+    // Swap chain already exists!
+    Log.report(LOG_ERROR, FMT_STRING("Created swapchain that already exists!"));
+    return false;
+  }
+  g_swapChains.push_back(ctx);
+  newSwapChain = ctx;
+  return true;
+}
+
+void resize_swapchain(SwapChainContext swapChainCtx, uint32_t width, uint32_t height, bool force) {
+
+  if (!force && swapChainCtx.graphicsConfig.swapChainDescriptor.width == width &&
+      swapChainCtx.graphicsConfig.swapChainDescriptor.height == height) {
     return;
   }
   if (g_config.startOpenXR) {
     auto configViews = xr::g_OpenXRSessionManager->GetConfigViews();
-    g_graphicsConfig.swapChainDescriptor.width = configViews[0].recommendedImageRectWidth;
-    g_graphicsConfig.swapChainDescriptor.height = configViews[0].recommendedImageRectHeight;
+    swapChainCtx.graphicsConfig.swapChainDescriptor.width = configViews[0].recommendedImageRectWidth;
+    swapChainCtx.graphicsConfig.swapChainDescriptor.height = configViews[0].recommendedImageRectHeight;
   }else {
-    g_graphicsConfig.swapChainDescriptor.width = width;
-    g_graphicsConfig.swapChainDescriptor.height = height;
+    swapChainCtx.graphicsConfig.swapChainDescriptor.width = width;
+    swapChainCtx.graphicsConfig.swapChainDescriptor.height = height;
   }
 
 #ifdef WEBGPU_DAWN
-  if (!g_swapChain) {
-    g_swapChain = g_device.CreateSwapChain(g_surface, &g_graphicsConfig.swapChainDescriptor);
-  }
-  g_swapChain.Configure(g_graphicsConfig.swapChainDescriptor.format, g_graphicsConfig.swapChainDescriptor.usage, width,
+  swapChainCtx.swapChain.Configure(swapChainCtx.graphicsConfig.swapChainDescriptor.format, swapChainCtx.graphicsConfig.swapChainDescriptor.usage, width,
                         height);
 #else
   g_swapChain = g_device.CreateSwapChain(g_surface, &g_graphicsConfig.swapChainDescriptor);

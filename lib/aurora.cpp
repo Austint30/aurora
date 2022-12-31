@@ -178,66 +178,78 @@ static const AuroraEvent* update() noexcept {
 }
 
 static bool begin_frame() noexcept {
+  for (const auto& swapChainCtx : webgpu::g_swapChains){
 #ifndef EMSCRIPTEN
-  g_currentView = g_swapChain.GetCurrentTextureView();
-  if (!g_currentView) {
-    ImGui::EndFrame();
-    // Force swapchain recreation
-    const auto size = window::get_window_size();
-    webgpu::resize_swapchain(size.fb_width, size.fb_height, true);
-    return false;
-  }
+    g_currentView = swapChainCtx.swapChain.GetCurrentTextureView();
+    if (!g_currentView) {
+      ImGui::EndFrame();
+      // Force swapchain recreation
+      const auto size = window::get_window_size();
+      int32_t width, height;
+      if (swapChainCtx.xrConfig != nullptr){
+        width = swapChainCtx.xrConfig.width;
+        height = swapChainCtx.xrConfig.height;
+      }
+      else
+      {
+        width = size.width;
+        height = size.height;
+      }
+      webgpu::resize_swapchain(swapChainCtx.swapChain, width, height, true);
+      return false;
+    }
 #endif
+  }
+
   gfx::begin_frame();
   return true;
 }
 
 static void end_frame() noexcept {
-  const auto encoderDescriptor = wgpu::CommandEncoderDescriptor{
-      .label = "Redraw encoder",
-  };
-  auto encoder = g_device.CreateCommandEncoder(&encoderDescriptor);
-  gfx::end_frame(encoder);
-  gfx::render(encoder);
-  {
-    const std::array attachments{
-        wgpu::RenderPassColorAttachment{
+  for (const auto& swapChainCtx : webgpu::g_swapChains){
+    const auto encoderDescriptor = wgpu::CommandEncoderDescriptor{
+        .label = "Redraw encoder",
+    };
+    auto encoder = g_device.CreateCommandEncoder(&encoderDescriptor);
+    gfx::end_frame(encoder);
+    gfx::render(encoder);
+    {
+      const std::array attachments{
+          wgpu::RenderPassColorAttachment{
 #ifdef EMSCRIPTEN
-            .view = g_swapChain.GetCurrentTextureView(),
+              .view = g_swapChain.GetCurrentTextureView(),
 #else
-            .view = g_currentView,
+              .view = g_currentView,
 #endif
-            .loadOp = wgpu::LoadOp::Clear,
-            .storeOp = wgpu::StoreOp::Store,
-        },
-    };
-    const wgpu::RenderPassDescriptor renderPassDescriptor{
-        .label = "Post render pass",
-        .colorAttachmentCount = attachments.size(),
-        .colorAttachments = attachments.data(),
-    };
-    auto pass = encoder.BeginRenderPass(&renderPassDescriptor);
-    // Copy EFB -> XFB (swapchain)
-    pass.SetPipeline(webgpu::g_CopyPipeline);
-    pass.SetBindGroup(0, webgpu::g_CopyBindGroup, 0, nullptr);
-    pass.Draw(3);
-    if (!g_initialFrame) {
-      // Render ImGui
-      imgui::render(pass);
+              .loadOp = wgpu::LoadOp::Clear,
+              .storeOp = wgpu::StoreOp::Store,
+          },
+      };
+      const wgpu::RenderPassDescriptor renderPassDescriptor{
+          .label = "Post render pass",
+          .colorAttachmentCount = attachments.size(),
+          .colorAttachments = attachments.data(),
+      };
+      auto pass = encoder.BeginRenderPass(&renderPassDescriptor);
+      // Copy EFB -> XFB (swapchain)
+      pass.SetPipeline(webgpu::g_CopyPipeline);
+      pass.SetBindGroup(0, webgpu::g_CopyBindGroup, 0, nullptr);
+      pass.Draw(3);
+      if (!g_initialFrame) {
+        // Render ImGui
+        imgui::render(pass);
+      }
+      pass.End();
     }
-    pass.End();
-  }
-  const wgpu::CommandBufferDescriptor cmdBufDescriptor{.label = "Redraw command buffer"};
-  const auto buffer = encoder.Finish(&cmdBufDescriptor);
-  g_queue.Submit(1, &buffer);
+    const wgpu::CommandBufferDescriptor cmdBufDescriptor{.label = "Redraw command buffer"};
+    const auto buffer = encoder.Finish(&cmdBufDescriptor);
+    g_queue.Submit(1, &buffer);
 #ifdef WEBGPU_DAWN
-  g_swapChain.Present();
-  g_currentView = {};
+    swapChainCtx.swapChain.Present();
+    g_currentView = {};
 #else
-  emscripten_sleep(0);
+    emscripten_sleep(0);
 #endif
-  if (!g_initialFrame) {
-    ImGui::EndFrame();
   }
 }
 } // namespace aurora
