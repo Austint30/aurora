@@ -6,6 +6,7 @@
 
 #include <SDL.h>
 #include <webgpu/webgpu.h>
+#include <algorithm>
 
 #include "../imgui/backends/imgui_impl_sdl.cpp"         // NOLINT(bugprone-suspicious-include)
 #include "../imgui/backends/imgui_impl_sdlrenderer.cpp" // NOLINT(bugprone-suspicious-include)
@@ -35,6 +36,19 @@ void create_context() noexcept {
 void initialize() noexcept {
   SDL_Renderer* renderer = window::get_sdl_renderer();
   ImGui_ImplSDL2_Init(window::get_sdl_window(), renderer);
+
+  auto swapChainCtxIt = std::find_if(webgpu::g_swapChains.begin(), webgpu::g_swapChains.end(), [=](webgpu::SwapChainContext& ctx){ return can_render_imgui(ctx); });
+
+  webgpu::SwapChainContext ctx;
+
+  if (swapChainCtxIt == webgpu::g_swapChains.end()){
+    return; // TODO: Exit when SwapChainCtx cannot be found
+  }
+  else
+  {
+    ctx = *swapChainCtxIt;
+  }
+
 #ifdef __APPLE__
   // Disable MouseCanUseGlobalState for scaling purposes
   ImGui_ImplSDL2_GetBackendData()->MouseCanUseGlobalState = false;
@@ -43,7 +57,7 @@ void initialize() noexcept {
   if (g_useSdlRenderer) {
     ImGui_ImplSDLRenderer_Init(renderer);
   } else {
-    const auto format = webgpu::g_graphicsConfig.swapChainDescriptor.format;
+    const auto format = ctx.graphicsConfig.swapChainDescriptor.format;
     ImGui_ImplWGPU_Init(webgpu::g_device.Get(), 1, static_cast<WGPUTextureFormat>(format));
   }
 }

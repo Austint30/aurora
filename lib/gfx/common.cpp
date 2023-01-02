@@ -583,7 +583,7 @@ void render(wgpu::CommandEncoder& cmd) {
     const std::array attachments{
         wgpu::RenderPassColorAttachment{
             .view = webgpu::g_frameBuffer.view,
-            .resolveTarget = webgpu::g_graphicsConfig.msaaSamples > 1 ? webgpu::g_frameBufferResolved.view : nullptr,
+            .resolveTarget = webgpu::g_primaryGraphicsConfig.msaaSamples > 1 ? webgpu::g_frameBufferResolved.view : nullptr,
             .loadOp = passInfo.clear ? wgpu::LoadOp::Clear : wgpu::LoadOp::Load,
             .storeOp = wgpu::StoreOp::Store,
             .clearValue =
@@ -620,7 +620,7 @@ void render(wgpu::CommandEncoder& cmd) {
                   .y = static_cast<uint32_t>(passInfo.resolveRect.y),
               },
       };
-      if (webgpu::g_graphicsConfig.msaaSamples > 1) {
+      if (webgpu::g_primaryGraphicsConfig.msaaSamples > 1) {
         src.texture = webgpu::g_frameBufferResolved.texture;
       } else {
         src.texture = webgpu::g_frameBuffer.texture;

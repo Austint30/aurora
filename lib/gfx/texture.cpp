@@ -121,7 +121,7 @@ TextureHandle new_dynamic_texture_2d(uint32_t width, uint32_t height, uint32_t m
 }
 
 TextureHandle new_render_texture(uint32_t width, uint32_t height, u32 fmt, const char* label) noexcept {
-  const auto wgpuFormat = webgpu::g_graphicsConfig.swapChainDescriptor.format;
+  const auto wgpuFormat = webgpu::g_primaryGraphicsConfig.swapChainDescriptor.format;
   const wgpu::Extent3D size{
       .width = width,
       .height = height,

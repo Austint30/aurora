@@ -18,7 +18,7 @@ AuroraConfig g_config;
 // GPU
 using webgpu::g_device;
 using webgpu::g_queue;
-using webgpu::g_swapChain;
+using webgpu::g_swapChains;
 
 constexpr std::array PreferredBackendOrder{
 #ifdef ENABLE_BACKEND_WEBGPU
@@ -185,17 +185,9 @@ static bool begin_frame() noexcept {
       ImGui::EndFrame();
       // Force swapchain recreation
       const auto size = window::get_window_size();
-      int32_t width, height;
-      if (swapChainCtx.xrConfig != nullptr){
-        width = swapChainCtx.xrConfig.width;
-        height = swapChainCtx.xrConfig.height;
-      }
-      else
-      {
-        width = size.width;
-        height = size.height;
-      }
-      webgpu::resize_swapchain(swapChainCtx.swapChain, width, height, true);
+      int32_t width = swapChainCtx.graphicsConfig.swapChainDescriptor.width;
+      int32_t height = swapChainCtx.graphicsConfig.swapChainDescriptor.height;
+      webgpu::resize_swapchain(swapChainCtx, width, height, true);
       return false;
     }
 #endif
@@ -212,7 +204,7 @@ static void end_frame() noexcept {
     };
     auto encoder = g_device.CreateCommandEncoder(&encoderDescriptor);
     gfx::end_frame(encoder);
-    gfx::render(encoder);
+    gfx::render(encoder); // Change to reuse prev render on mirror swapchain
     {
       const std::array attachments{
           wgpu::RenderPassColorAttachment{

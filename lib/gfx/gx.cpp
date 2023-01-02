@@ -17,7 +17,7 @@ static Module Log("aurora::gfx::gx");
 
 namespace gx {
 using webgpu::g_device;
-using webgpu::g_graphicsConfig;
+using webgpu::g_primaryGraphicsConfig;
 
 GXState g_gxState{};
 
@@ -190,7 +190,7 @@ wgpu::RenderPipeline build_pipeline(const PipelineConfig& config, const ShaderIn
                                     ArrayRef<wgpu::VertexBufferLayout> vtxBuffers, wgpu::ShaderModule shader,
                                     const char* label) noexcept {
   const wgpu::DepthStencilState depthStencil{
-      .format = g_graphicsConfig.depthFormat,
+      .format = g_primaryGraphicsConfig.depthFormat,
       .depthWriteEnabled = config.depthUpdate,
       .depthCompare = to_compare_function(config.depthFunc),
       .stencilFront =
@@ -205,7 +205,7 @@ wgpu::RenderPipeline build_pipeline(const PipelineConfig& config, const ShaderIn
   const auto blendState =
       to_blend_state(config.blendMode, config.blendFacSrc, config.blendFacDst, config.blendOp, config.dstAlpha);
   const std::array colorTargets{wgpu::ColorTargetState{
-      .format = g_graphicsConfig.swapChainDescriptor.format,
+      .format = g_primaryGraphicsConfig.swapChainDescriptor.format,
       .blend = &blendState,
       .writeMask = to_write_mask(config.colorUpdate, config.alphaUpdate),
   }};
@@ -241,7 +241,7 @@ wgpu::RenderPipeline build_pipeline(const PipelineConfig& config, const ShaderIn
       .depthStencil = &depthStencil,
       .multisample =
           wgpu::MultisampleState{
-              .count = g_graphicsConfig.msaaSamples,
+              .count = g_primaryGraphicsConfig.msaaSamples,
               .mask = UINT32_MAX,
           },
       .fragment = &fragmentState,
@@ -711,9 +711,9 @@ static u16 wgpu_aniso(GXAnisotropy aniso) {
   case GX_ANISO_1:
     return 1;
   case GX_ANISO_2:
-    return std::max<u16>(webgpu::g_graphicsConfig.textureAnisotropy / 2, 1);
+    return std::max<u16>(webgpu::g_primaryGraphicsConfig.textureAnisotropy / 2, 1);
   case GX_ANISO_4:
-    return std::max<u16>(webgpu::g_graphicsConfig.textureAnisotropy, 1);
+    return std::max<u16>(webgpu::g_primaryGraphicsConfig.textureAnisotropy, 1);
   }
 }
 wgpu::SamplerDescriptor TextureBind::get_descriptor() const noexcept {

@@ -17,25 +17,36 @@ static SDL_Renderer* g_renderer;
 static AuroraWindowSize g_windowSize;
 static std::vector<AuroraEvent> g_events;
 
+using webgpu::g_swapChains;
+
 static inline bool operator==(const AuroraWindowSize& lhs, const AuroraWindowSize& rhs) {
   return lhs.width == rhs.width && lhs.height == rhs.height && lhs.fb_width == rhs.fb_width &&
          lhs.fb_height == rhs.fb_height && lhs.scale == rhs.scale;
 }
 
-static void resize_swapchain(wgpu::SwapChain swapChain, bool force) noexcept {
+static void resize_swapchain(bool force) noexcept {
   const auto size = get_window_size();
   if (!force && size == g_windowSize) {
     return;
   }
+
   if (size.scale != g_windowSize.scale) {
     if (g_windowSize.scale > 0.f) {
       Log.report(LOG_INFO, FMT_STRING("Display scale changed to {}"), size.scale);
     }
   }
-  g_windowSize = size;
-  if (!g_config.startOpenXR){
-    webgpu::resize_swapchain(swapChain, size.fb_width, size.fb_height);
+
+
+  for (const auto& swapChain : g_swapChains){
+    if (swapChain.type != webgpu::SwapChainType::PRIMARY && swapChain.type != webgpu::SwapChainType::MIRROR){
+      return;
+    }
+    g_windowSize = size;
+    webgpu::resize_swapchain(swapChain, size.fb_width, size.fb_height, false);
   }
+
+
+
 }
 
 const AuroraEvent* poll_events() {
