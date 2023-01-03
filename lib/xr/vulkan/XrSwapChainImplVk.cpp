@@ -24,6 +24,8 @@
 
 namespace aurora::xr {
 
+using aurora::g_CurrentXrView;
+
 // Converts the Dawn usage flags to Vulkan usage flags. Also needs the format to choose
 // between color and depth attachment usages.
 XrSwapchainUsageFlags OpenXRImageUsage(wgpu::TextureUsage usage) {
@@ -196,60 +198,45 @@ DawnSwapChainError XrSwapChainImplVk::Configure(WGPUTextureFormat format,
       int64_t swapchainFormat = VK_FORMAT_B8G8R8A8_UNORM; // Hard coding for now
 
     // Create a swapchain for each view
-    for (auto & configView : configViews) {
-        XrSwapchain swapChain = nullptr;
-        XrSwapchainCreateInfo createInfo{XR_TYPE_SWAPCHAIN_CREATE_INFO};
-        createInfo.arraySize = 1;
-        createInfo.format = swapchainFormat;
-        createInfo.width = configView.recommendedImageRectWidth;
-        createInfo.height = configView.recommendedImageRectHeight;
-        createInfo.mipCount = 1;
-        createInfo.faceCount = 1;
-        createInfo.sampleCount = configView.recommendedSwapchainSampleCount;
-        createInfo.usageFlags = OpenXRImageUsage(static_cast<wgpu::TextureUsage>(usage));
+      XrSwapchainCreateInfo createInfo{XR_TYPE_SWAPCHAIN_CREATE_INFO};
+      createInfo.arraySize = 1;
+      createInfo.format = swapchainFormat;
+      createInfo.width = width;
+      createInfo.height = height;
+      createInfo.mipCount = 1;
+      createInfo.faceCount = 1;
+      createInfo.sampleCount = configViews[g_CurrentXrView].recommendedSwapchainSampleCount;
+      createInfo.usageFlags = OpenXRImageUsage(static_cast<wgpu::TextureUsage>(usage));
 
-        CHECK_XRCMD(xrCreateSwapchain(session, &createInfo, &swapChain));
+      CHECK_XRCMD(xrCreateSwapchain(session, &createInfo, &m_swapChain));
 
-        m_swapChains.push_back(swapChain);
-    }
+      uint32_t count = 0;
+      CHECK_XRCMD(xrEnumerateSwapchainImages(m_swapChain, 0, &count, nullptr));
+      m_swapChainImages.resize(count);
+      m_swapChainBaseHeaders.resize(count);
+      for (int i = 0; i < count; ++i) {
+      m_swapChainImages[i] = {XR_TYPE_SWAPCHAIN_IMAGE_VULKAN2_KHR};
+      m_swapChainBaseHeaders[i] = reinterpret_cast<XrSwapchainImageBaseHeader*>(&m_swapChainImages[i]);
+      }
 
-    for (const auto & swapChain : m_swapChains){
-        uint32_t count = 0;
-        CHECK_XRCMD(xrEnumerateSwapchainImages(swapChain, 0, &count, nullptr));
-        m_swapChainImages.resize(count);
-        m_swapChainBaseHeaders.resize(count);
-        for (int i = 0; i < count; ++i) {
-            m_swapChainImages[i] = {XR_TYPE_SWAPCHAIN_IMAGE_VULKAN2_KHR};
-            m_swapChainBaseHeaders[i] = reinterpret_cast<XrSwapchainImageBaseHeader*>(&m_swapChainImages[i]);
-        }
-
-        // Why do I need to use the first element of m_swapChainBaseHeaders like this?
-        CHECK_XRCMD(xrEnumerateSwapchainImages(swapChain, count, &count, m_swapChainBaseHeaders[0]));
-    }
+      // Why do I need to use the first element of m_swapChainBaseHeaders like this?
+      CHECK_XRCMD(xrEnumerateSwapchainImages(m_swapChain, count, &count, m_swapChainBaseHeaders[0]));
 
     return DAWN_SWAP_CHAIN_NO_ERROR;
 }
 
 DawnSwapChainError XrSwapChainImplVk::GetNextTexture(DawnSwapChainNextTexture* nextTexture) {
+    XrSwapchainImageAcquireInfo acquireInfo{XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO};
+    uint32_t swapchainImageIndex;
+    CHECK_XRCMD(xrAcquireSwapchainImage(m_swapChain, &acquireInfo, &swapchainImageIndex));
 
-    std::vector<uint32_t> imageIndexes(m_swapChains.size());
-
-    for (int i = 0; i < m_swapChains.size(); ++i) {
-        XrSwapchain swapChain = m_swapChains[i];
-        XrSwapchainImageAcquireInfo acquireInfo{XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO};
-        uint32_t swapchainImageIndex;
-        CHECK_XRCMD(xrAcquireSwapchainImage(swapChain, &acquireInfo, &swapchainImageIndex));
-
-        imageIndexes[i] = swapchainImageIndex;
-
-        // Don't know if I should put this here
-        XrSwapchainImageWaitInfo waitInfo{XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO};
-        waitInfo.timeout = XR_INFINITE_DURATION;
-        CHECK_XRCMD(xrWaitSwapchainImage(swapChain, &waitInfo));
-    }
+    // Don't know if I should put this here
+    XrSwapchainImageWaitInfo waitInfo{XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO};
+    waitInfo.timeout = XR_INFINITE_DURATION;
+    CHECK_XRCMD(xrWaitSwapchainImage(m_swapChain, &waitInfo));
 
     // Looks like Dawn only works with one image at a time at the moment. So, just give it the first view image.
-    nextTexture->texture.u64 = reinterpret_cast<uint64_t>(m_swapChainImages[imageIndexes[0]].image);
+    nextTexture->texture.u64 = reinterpret_cast<uint64_t>(m_swapChainImages[swapchainImageIndex].image);
 
     return DAWN_SWAP_CHAIN_NO_ERROR;
 }
@@ -319,12 +306,9 @@ DawnSwapChainError XrSwapChainImplVk::Present() {
  */
 
 DawnSwapChainError XrSwapChainImplVk::Present() {
-    for (int i = 0; i < m_swapChains.size(); ++i) {
-        XrSwapchain swapChain = m_swapChains[i];
 
-        XrSwapchainImageReleaseInfo releaseInfo{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
-        CHECK_XRCMD(xrReleaseSwapchainImage(swapChain, &releaseInfo));
-    }
+    XrSwapchainImageReleaseInfo releaseInfo{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
+    CHECK_XRCMD(xrReleaseSwapchainImage(m_swapChain, &releaseInfo));
     return DAWN_SWAP_CHAIN_NO_ERROR;
 }
 

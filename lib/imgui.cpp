@@ -37,16 +37,16 @@ void initialize() noexcept {
   SDL_Renderer* renderer = window::get_sdl_renderer();
   ImGui_ImplSDL2_Init(window::get_sdl_window(), renderer);
 
-  auto swapChainCtxIt = std::find_if(webgpu::g_swapChains.begin(), webgpu::g_swapChains.end(), [=](webgpu::SwapChainContext& ctx){ return can_render_imgui(ctx); });
+  auto renderViewIt = std::find_if(webgpu::g_renderViews.begin(), webgpu::g_renderViews.end(), [=](webgpu::RenderView& ctx){ return can_render_imgui(ctx); });
 
-  webgpu::SwapChainContext ctx;
+  webgpu::RenderView ctx;
 
-  if (swapChainCtxIt == webgpu::g_swapChains.end()){
-    return; // TODO: Exit when SwapChainCtx cannot be found
+  if (renderViewIt == webgpu::g_renderViews.end()){
+    return; // TODO: Exit when renderView cannot be found
   }
   else
   {
-    ctx = *swapChainCtxIt;
+    ctx = *renderViewIt;
   }
 
 #ifdef __APPLE__

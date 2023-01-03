@@ -40,7 +40,7 @@ public:
 private:
     void UpdateSurfaceConfig();
     uint32_t mLastImageIndex = 0;
-    std::vector<XrSwapchain> m_swapChains;
+    XrSwapchain m_swapChain;
     std::vector<XrSwapchainImageVulkanKHR> m_swapChainImages;
     std::vector<XrSwapchainImageBaseHeader*> m_swapChainBaseHeaders;
 

@@ -57,6 +57,7 @@ using namespace std::string_view_literals;
 
 namespace aurora {
 extern AuroraConfig g_config;
+extern int g_CurrentXrView;
 
 struct Module {
   const char* name;

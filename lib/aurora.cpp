@@ -14,11 +14,13 @@ namespace aurora {
 static Module Log("aurora");
 
 AuroraConfig g_config;
+int g_CurrentXrView;
 
 // GPU
 using webgpu::g_device;
 using webgpu::g_queue;
-using webgpu::g_swapChains;
+using webgpu::g_renderViews;
+static int g_currSwapChainIndex = -1;
 
 constexpr std::array PreferredBackendOrder{
 #ifdef ENABLE_BACKEND_WEBGPU
@@ -141,7 +143,8 @@ static AuroraInfo initialize(int argc, char* argv[], const AuroraConfig& config)
   }
   imgui::initialize();
 
-  if (aurora_begin_frame()) {
+  aurora_begin_frame();
+  if (aurora_begin_render_view()) {
     g_initialFrame = true;
   }
   g_config.desiredBackend = selectedBackend;
@@ -177,73 +180,94 @@ static const AuroraEvent* update() noexcept {
   return events;
 }
 
-static bool begin_frame() noexcept {
-  for (const auto& swapChainCtx : webgpu::g_swapChains){
-#ifndef EMSCRIPTEN
-    g_currentView = swapChainCtx.swapChain.GetCurrentTextureView();
-    if (!g_currentView) {
-      ImGui::EndFrame();
-      // Force swapchain recreation
-      const auto size = window::get_window_size();
-      int32_t width = swapChainCtx.graphicsConfig.swapChainDescriptor.width;
-      int32_t height = swapChainCtx.graphicsConfig.swapChainDescriptor.height;
-      webgpu::resize_swapchain(swapChainCtx, width, height, true);
-      return false;
-    }
-#endif
+static bool begin_render_view(){
+
+  webgpu::RenderView renderView = g_renderViews[g_currSwapChainIndex];
+
+  if (renderView.type == webgpu::OPENXR_LEFT){
+    g_CurrentXrView = 0;
   }
+  else if (renderView.type == webgpu::OPENXR_RIGHT){
+    aurora::g_CurrentXrView = 1;
+  }
+
+#ifndef EMSCRIPTEN
+  g_currentView = renderView.swapChain.GetCurrentTextureView();
+  if (!g_currentView) {
+    ImGui::EndFrame();
+    // Force swapchain recreation
+    const auto size = window::get_window_size();
+    int32_t width = renderView.graphicsConfig.swapChainDescriptor.width;
+    int32_t height = renderView.graphicsConfig.swapChainDescriptor.height;
+    webgpu::resize_swapchain(renderView, width, height, true);
+    return false;
+  }
+#endif
 
   gfx::begin_frame();
   return true;
 }
 
-static void end_frame() noexcept {
-  for (const auto& swapChainCtx : webgpu::g_swapChains){
-    const auto encoderDescriptor = wgpu::CommandEncoderDescriptor{
-        .label = "Redraw encoder",
-    };
-    auto encoder = g_device.CreateCommandEncoder(&encoderDescriptor);
-    gfx::end_frame(encoder);
-    gfx::render(encoder); // Change to reuse prev render on mirror swapchain
-    {
-      const std::array attachments{
-          wgpu::RenderPassColorAttachment{
+static void end_render_view(){
+  webgpu::RenderView renderView = g_renderViews[g_currSwapChainIndex];
+  g_currSwapChainIndex++;
+  const auto encoderDescriptor = wgpu::CommandEncoderDescriptor{
+      .label = "Redraw encoder",
+  };
+  auto encoder = g_device.CreateCommandEncoder(&encoderDescriptor);
+  gfx::end_frame(encoder);
+  gfx::render(encoder); // Change to reuse prev render on mirror swapchain
+  {
+    const std::array attachments{
+        wgpu::RenderPassColorAttachment{
 #ifdef EMSCRIPTEN
-              .view = g_swapChain.GetCurrentTextureView(),
+            .view = g_swapChain.GetCurrentTextureView(),
 #else
-              .view = g_currentView,
+            .view = g_currentView,
 #endif
-              .loadOp = wgpu::LoadOp::Clear,
-              .storeOp = wgpu::StoreOp::Store,
-          },
-      };
-      const wgpu::RenderPassDescriptor renderPassDescriptor{
-          .label = "Post render pass",
-          .colorAttachmentCount = attachments.size(),
-          .colorAttachments = attachments.data(),
-      };
-      auto pass = encoder.BeginRenderPass(&renderPassDescriptor);
-      // Copy EFB -> XFB (swapchain)
-      pass.SetPipeline(webgpu::g_CopyPipeline);
-      pass.SetBindGroup(0, webgpu::g_CopyBindGroup, 0, nullptr);
-      pass.Draw(3);
-      if (!g_initialFrame) {
-        // Render ImGui
-        imgui::render(pass);
-      }
-      pass.End();
+            .loadOp = wgpu::LoadOp::Clear,
+            .storeOp = wgpu::StoreOp::Store,
+        },
+    };
+    const wgpu::RenderPassDescriptor renderPassDescriptor{
+        .label = "Post render pass",
+        .colorAttachmentCount = attachments.size(),
+        .colorAttachments = attachments.data(),
+    };
+    auto pass = encoder.BeginRenderPass(&renderPassDescriptor);
+    // Copy EFB -> XFB (swapchain)
+    pass.SetPipeline(renderView.copyPipeline);
+    pass.SetBindGroup(0, webgpu::g_CopyBindGroup, 0, nullptr);
+    pass.Draw(3);
+    if (!g_initialFrame && (renderView.type == webgpu::PRIMARY || renderView.type == webgpu::MIRROR)) {
+      // Render ImGui
+      imgui::render(pass);
     }
-    const wgpu::CommandBufferDescriptor cmdBufDescriptor{.label = "Redraw command buffer"};
-    const auto buffer = encoder.Finish(&cmdBufDescriptor);
-    g_queue.Submit(1, &buffer);
-#ifdef WEBGPU_DAWN
-    swapChainCtx.swapChain.Present();
-    g_currentView = {};
-#else
-    emscripten_sleep(0);
-#endif
+    pass.End();
   }
+  const wgpu::CommandBufferDescriptor cmdBufDescriptor{.label = "Redraw command buffer"};
+  const auto buffer = encoder.Finish(&cmdBufDescriptor);
+  g_queue.Submit(1, &buffer);
+#ifdef WEBGPU_DAWN
+  renderView.swapChain.Present();
+  g_currentView = {};
+#else
+  emscripten_sleep(0);
+#endif
 }
+
+static void begin_frame() noexcept {
+  g_currSwapChainIndex = 0;
+}
+
+static void end_frame() noexcept {
+  g_currSwapChainIndex = -1; // Probably not needed
+}
+
+static bool has_render_view(){
+  return g_currSwapChainIndex < g_renderViews.size();
+}
+
 } // namespace aurora
 
 // C API bindings
@@ -252,8 +276,12 @@ AuroraInfo aurora_initialize(int argc, char* argv[], const AuroraConfig* config)
 }
 void aurora_shutdown() { aurora::shutdown(); }
 const AuroraEvent* aurora_update() { return aurora::update(); }
-bool aurora_begin_frame() { return aurora::begin_frame(); }
+void aurora_begin_frame() { aurora::begin_frame(); }
 void aurora_end_frame() { aurora::end_frame(); }
+bool aurora_begin_render_view(){ return aurora::begin_render_view(); };
+void aurora_end_render_view(){ aurora::end_render_view(); }
+bool aurora_has_render_view(){ return aurora::has_render_view(); };
+
 AuroraBackend aurora_get_backend() { return aurora::g_config.desiredBackend; }
 const AuroraBackend* aurora_get_available_backends(size_t* count) {
   *count = aurora::PreferredBackendOrder.size();

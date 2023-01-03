@@ -17,7 +17,7 @@ static SDL_Renderer* g_renderer;
 static AuroraWindowSize g_windowSize;
 static std::vector<AuroraEvent> g_events;
 
-using webgpu::g_swapChains;
+using webgpu::g_renderViews;
 
 static inline bool operator==(const AuroraWindowSize& lhs, const AuroraWindowSize& rhs) {
   return lhs.width == rhs.width && lhs.height == rhs.height && lhs.fb_width == rhs.fb_width &&
@@ -37,12 +37,12 @@ static void resize_swapchain(bool force) noexcept {
   }
 
 
-  for (const auto& swapChain : g_swapChains){
-    if (swapChain.type != webgpu::SwapChainType::PRIMARY && swapChain.type != webgpu::SwapChainType::MIRROR){
-      return;
+  for (auto& renderView : g_renderViews){
+    if (renderView.type != webgpu::RenderViewType::PRIMARY && renderView.type != webgpu::RenderViewType::MIRROR){
+      continue ;
     }
     g_windowSize = size;
-    webgpu::resize_swapchain(swapChain, size.fb_width, size.fb_height, false);
+    webgpu::resize_swapchain(renderView, size.fb_width, size.fb_height, false);
   }
 
 
@@ -167,11 +167,6 @@ bool create_window(AuroraBackend backend) {
   if (width == 0 || height == 0) {
     width = 1280;
     height = 960;
-  }
-  if (g_config.startOpenXR){
-    auto configViews = xr::g_OpenXRSessionManager->GetConfigViews();
-    width = configViews[0].recommendedImageRectWidth;
-    height = configViews[0].recommendedImageRectHeight;
   }
 #endif
   g_window = SDL_CreateWindow(g_config.appName, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, flags);

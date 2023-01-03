@@ -73,8 +73,13 @@ typedef struct {
 AuroraInfo aurora_initialize(int argc, char* argv[], const AuroraConfig* config);
 void aurora_shutdown();
 const AuroraEvent* aurora_update();
-bool aurora_begin_frame();
+
+void aurora_begin_frame();
 void aurora_end_frame();
+bool aurora_has_render_view();
+bool aurora_begin_render_view();
+void aurora_end_render_view();
+
 
 AuroraBackend aurora_get_backend();
 const AuroraBackend* aurora_get_available_backends(size_t* count);
