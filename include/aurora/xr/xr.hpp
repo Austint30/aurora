@@ -25,6 +25,7 @@ private:
   XrSystemId m_systemId{XR_NULL_SYSTEM_ID};
   std::vector<XrView> m_views;
   std::vector<XrViewConfigurationView> m_configViews;
+  std::vector<int64_t> m_swapChainFormats;
 
 public:
   const XrInstance GetInstance() const;
@@ -35,6 +36,8 @@ public:
   virtual ~OpenXRSessionManager() = default;
 
   std::vector<XrView> GetViews();
+
+  std::vector<int64_t> GetSwapChainFormats();
 
   uint32_t GetNumViews() {
       return m_views.size();

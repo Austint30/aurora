@@ -237,6 +237,19 @@ std::vector<XrViewConfigurationView> OpenXRSessionManager::GetConfigViews(){
   return m_configViews;
 }
 
+std::vector<int64_t> OpenXRSessionManager::GetSwapChainFormats(){
+  if (!m_swapChainFormats.empty()){
+    return m_swapChainFormats;
+  }
+  uint32_t swapchainFormatCount;
+  CHECK_XRCMD(xrEnumerateSwapchainFormats(m_session, 0, &swapchainFormatCount, nullptr));
+  m_swapChainFormats.resize(swapchainFormatCount);
+  CHECK_XRCMD(xrEnumerateSwapchainFormats(m_session, (uint32_t)m_swapChainFormats.size(), &swapchainFormatCount,
+                                          m_swapChainFormats.data()));
+  CHECK(swapchainFormatCount == m_swapChainFormats.size());
+  return m_swapChainFormats;
+}
+
 //std::vector<XrSwapchain> OpenXRSessionManager::GetSwapchains() {
 //
 //  if (!m_swapChains.empty()){

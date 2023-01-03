@@ -38,8 +38,7 @@ public:
   DawnSwapChainError Present();
   wgpu::TextureFormat GetPreferredFormat() const;
 private:
-    void UpdateSurfaceConfig();
-    uint32_t mLastImageIndex = 0;
+//    void UpdateSurfaceConfig();
     XrSwapchain m_swapChain;
     std::vector<XrSwapchainImageVulkanKHR> m_swapChainImages;
     std::vector<XrSwapchainImageBaseHeader*> m_swapChainBaseHeaders;

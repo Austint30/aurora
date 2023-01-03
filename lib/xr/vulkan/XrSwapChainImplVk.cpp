@@ -26,6 +26,36 @@ namespace aurora::xr {
 
 using aurora::g_CurrentXrView;
 
+int64_t SelectColorSwapchainFormat(const std::vector<int64_t>& runtimeFormats){
+  // List of supported color swapchain formats.
+  constexpr int64_t SupportedColorSwapchainFormats[] = {VK_FORMAT_B8G8R8A8_UNORM,
+                                                        VK_FORMAT_R8G8B8A8_UNORM,
+                                                        VK_FORMAT_B8G8R8A8_SRGB,
+                                                        VK_FORMAT_R8G8B8A8_SRGB};
+
+  auto swapchainFormatIt =
+      std::find_first_of(runtimeFormats.begin(), runtimeFormats.end(), std::begin(SupportedColorSwapchainFormats),
+                         std::end(SupportedColorSwapchainFormats));
+  if (swapchainFormatIt == runtimeFormats.end()) {
+    THROW("No runtime swapchain format supported for color swapchain");
+  }
+
+  return *swapchainFormatIt;
+}
+
+wgpu::TextureFormat ConvertToWgpuTextureFormat(int64_t vulkanFormat){
+  switch (vulkanFormat) {
+  case VK_FORMAT_B8G8R8A8_UNORM:
+    return wgpu::TextureFormat::BGRA8Unorm;
+  case VK_FORMAT_R8G8B8A8_UNORM:
+    return wgpu::TextureFormat::RGBA8Unorm;
+  case VK_FORMAT_B8G8R8A8_SRGB:
+    return wgpu::TextureFormat::BGRA8UnormSrgb;
+  case VK_FORMAT_R8G8B8A8_SRGB:
+    return wgpu::TextureFormat::RGBA8UnormSrgb;
+  }
+}
+
 // Converts the Dawn usage flags to Vulkan usage flags. Also needs the format to choose
 // between color and depth attachment usages.
 XrSwapchainUsageFlags OpenXRImageUsage(wgpu::TextureUsage usage) {
@@ -108,7 +138,7 @@ XrSwapchainUsageFlags OpenXRImageUsage(wgpu::TextureUsage usage) {
 XrSwapChainImplVk::XrSwapChainImplVk() {
     // Call this immediately, so that BackendBinding::GetPreferredSwapChainTextureFormat
     // will return a correct result before a SwapChain is created.
-    UpdateSurfaceConfig();
+//    UpdateSurfaceConfig();
 }
 
 XrSwapChainImplVk::~XrSwapChainImplVk() {
@@ -122,26 +152,26 @@ XrSwapChainImplVk::~XrSwapChainImplVk() {
 //    }
 }
 
-void XrSwapChainImplVk::UpdateSurfaceConfig() {
-//    if (mDevice->ConsumedError(GatherSurfaceInfo(*ToBackend(mDevice->GetAdapter()), mSurface),
-//                               &mInfo)) {
-//        ASSERT(false, "");
-//    }
-//
-//    if (!ChooseSurfaceConfig(mInfo, &mConfig, mDevice->IsToggleEnabled(Toggle::TurnOffVsync))) {
-//        ASSERT(false, "");
-//    }
-}
+//void XrSwapChainImplVk::UpdateSurfaceConfig() {
+////    if (mDevice->ConsumedError(GatherSurfaceInfo(*ToBackend(mDevice->GetAdapter()), mSurface),
+////                               &mInfo)) {
+////        ASSERT(false, "");
+////    }
+////
+////    if (!ChooseSurfaceConfig(mInfo, &mConfig, mDevice->IsToggleEnabled(Toggle::TurnOffVsync))) {
+////        ASSERT(false, "");
+////    }
+//}
 
 void XrSwapChainImplVk::Init(DawnWSIContextVulkan* /*context*/) {
-    UpdateSurfaceConfig();
+//    UpdateSurfaceConfig();
 }
 
 DawnSwapChainError XrSwapChainImplVk::Configure(WGPUTextureFormat format,
                                                   WGPUTextureUsage usage,
                                                   uint32_t width,
                                                   uint32_t height) {
-    UpdateSurfaceConfig();
+//    UpdateSurfaceConfig();
 
 //    ASSERT(mInfo.capabilities.minImageExtent.width <= width);
 //    ASSERT(mInfo.capabilities.maxImageExtent.width >= width);
@@ -194,33 +224,34 @@ DawnSwapChainError XrSwapChainImplVk::Configure(WGPUTextureFormat format,
                                             swapchainFormats.data()));
     CHECK(swapchainFormatCount == swapchainFormats.size());
 
-//    int64_t swapchainFormat = SelectColorSwapchainFormat(swapchainFormats);
-      int64_t swapchainFormat = VK_FORMAT_B8G8R8A8_UNORM; // Hard coding for now
+    std::vector<int64_t> swapChainFormats = g_OpenXRSessionManager->GetSwapChainFormats();
+
+    int64_t swapchainFormat = SelectColorSwapchainFormat(swapChainFormats);
 
     // Create a swapchain for each view
-      XrSwapchainCreateInfo createInfo{XR_TYPE_SWAPCHAIN_CREATE_INFO};
-      createInfo.arraySize = 1;
-      createInfo.format = swapchainFormat;
-      createInfo.width = width;
-      createInfo.height = height;
-      createInfo.mipCount = 1;
-      createInfo.faceCount = 1;
-      createInfo.sampleCount = configViews[g_CurrentXrView].recommendedSwapchainSampleCount;
-      createInfo.usageFlags = OpenXRImageUsage(static_cast<wgpu::TextureUsage>(usage));
+    XrSwapchainCreateInfo createInfo{XR_TYPE_SWAPCHAIN_CREATE_INFO};
+    createInfo.arraySize = 1;
+    createInfo.format = swapchainFormat;
+    createInfo.width = width;
+    createInfo.height = height;
+    createInfo.mipCount = 1;
+    createInfo.faceCount = 1;
+    createInfo.sampleCount = configViews[g_CurrentXrView].recommendedSwapchainSampleCount;
+    createInfo.usageFlags = XR_SWAPCHAIN_USAGE_SAMPLED_BIT | XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT;
 
-      CHECK_XRCMD(xrCreateSwapchain(session, &createInfo, &m_swapChain));
+    CHECK_XRCMD(xrCreateSwapchain(session, &createInfo, &m_swapChain));
 
-      uint32_t count = 0;
-      CHECK_XRCMD(xrEnumerateSwapchainImages(m_swapChain, 0, &count, nullptr));
-      m_swapChainImages.resize(count);
-      m_swapChainBaseHeaders.resize(count);
-      for (int i = 0; i < count; ++i) {
-      m_swapChainImages[i] = {XR_TYPE_SWAPCHAIN_IMAGE_VULKAN2_KHR};
-      m_swapChainBaseHeaders[i] = reinterpret_cast<XrSwapchainImageBaseHeader*>(&m_swapChainImages[i]);
-      }
+    uint32_t count = 0;
+    CHECK_XRCMD(xrEnumerateSwapchainImages(m_swapChain, 0, &count, nullptr));
+    m_swapChainImages.resize(count);
+    m_swapChainBaseHeaders.resize(count);
+    for (int i = 0; i < count; ++i) {
+    m_swapChainImages[i] = {XR_TYPE_SWAPCHAIN_IMAGE_VULKAN2_KHR};
+    m_swapChainBaseHeaders[i] = reinterpret_cast<XrSwapchainImageBaseHeader*>(&m_swapChainImages[i]);
+    }
 
-      // Why do I need to use the first element of m_swapChainBaseHeaders like this?
-      CHECK_XRCMD(xrEnumerateSwapchainImages(m_swapChain, count, &count, m_swapChainBaseHeaders[0]));
+    // Why do I need to use the first element of m_swapChainBaseHeaders like this?
+    CHECK_XRCMD(xrEnumerateSwapchainImages(m_swapChain, count, &count, m_swapChainBaseHeaders[0]));
 
     return DAWN_SWAP_CHAIN_NO_ERROR;
 }
@@ -306,14 +337,14 @@ DawnSwapChainError XrSwapChainImplVk::Present() {
  */
 
 DawnSwapChainError XrSwapChainImplVk::Present() {
-
     XrSwapchainImageReleaseInfo releaseInfo{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
     CHECK_XRCMD(xrReleaseSwapchainImage(m_swapChain, &releaseInfo));
     return DAWN_SWAP_CHAIN_NO_ERROR;
 }
 
 wgpu::TextureFormat XrSwapChainImplVk::GetPreferredFormat() const {
-    return wgpu::TextureFormat::BGRA8Unorm;
+    std::vector<int64_t> swapChainFormats = g_OpenXRSessionManager->GetSwapChainFormats();
+    return ConvertToWgpuTextureFormat(SelectColorSwapchainFormat(swapChainFormats));
 }
 
 } // aurora::xr

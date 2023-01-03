@@ -160,7 +160,7 @@ private:
 //           "Failed to create Vulkan surface: {}", SDL_GetError());
 //    m_swapChainImpl = dawn::native::vulkan::CreateNativeSwapChainImpl(m_device, surface);
     m_swapChainImpl = CreateSwapChainImplementation(new xr::XrSwapChainImplVk());
-    m_swapChainImpl.textureUsage = WGPUTextureUsage_Present;
+    m_swapChainImpl.textureUsage = WGPUTextureUsage_RenderAttachment;
   }
 };
 

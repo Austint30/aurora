@@ -394,11 +394,6 @@ void create_xr_graphicsconfig(utils::BackendBinding& backendBinding) {
 #else
   auto swapChainFormat = g_surface.GetPreferredFormat(g_adapter);
 #endif
-  if (swapChainFormat == wgpu::TextureFormat::RGBA8UnormSrgb) {
-    swapChainFormat = wgpu::TextureFormat::RGBA8Unorm;
-  } else if (swapChainFormat == wgpu::TextureFormat::BGRA8UnormSrgb) {
-    swapChainFormat = wgpu::TextureFormat::BGRA8Unorm;
-  }
 
   Log.report(LOG_INFO, FMT_STRING("(OPENXR) Using swapchain format {}"), magic_enum::enum_name(swapChainFormat));
 
