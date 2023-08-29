@@ -2,11 +2,13 @@
 
 #include "gfx/common.hpp"
 #include "imgui.hpp"
+#include "input.hpp"
 #include "internal.hpp"
 #include "webgpu/gpu.hpp"
 #include "window.hpp"
 #include "aurora/xr/xr.hpp"
 
+#include <SDL.h>
 #include <SDL_filesystem.h>
 #include <imgui.h>
 
@@ -133,6 +135,7 @@ static AuroraInfo initialize(int argc, char* argv[], const AuroraConfig& config)
   }
 
   window::show_window();
+
   gfx::initialize();
 
   imgui::create_context();
@@ -174,6 +177,7 @@ static const AuroraEvent* update() noexcept {
   if (g_initialFrame) {
     aurora_end_frame();
     g_initialFrame = false;
+    input::initialize();
   }
   const auto* events = window::poll_events();
   imgui::new_frame(window::get_window_size());
