@@ -2,16 +2,15 @@
 
 #include "../internal.hpp"
 #include "../webgpu/gpu.hpp"
-#include "aurora/xr/openxr_platform.hpp"
-#include "../xr/common.h"
-#include "aurora/xr/xr.hpp"
 #include "../xr/XrVulkanFunctions.hpp"
-#include "../xr/vulkan/XrSwapChainImplVk.h"
+#include "../xr/common.h"
+//#include "../xr/vulkan/XrSwapChainImplVk.h"
+#include "aurora/xr/openxr_platform.hpp"
+#include "aurora/xr/xr.hpp"
 #include <iostream>
 
 #include <SDL_vulkan.h>
 #include <dawn/native/VulkanBackend.h>
-#include <dawn/common/SwapChainUtils.h>
 
 #define CHECK_VKCMD(cmd) CheckVkResult(cmd, #cmd, FILE_AND_LINE);
 #define CHECK_VKRESULT(res, cmdStr) CheckVkResult(res, cmdStr, FILE_AND_LINE);
@@ -100,28 +99,28 @@ class VulkanBinding : public BackendBinding {
 public:
   VulkanBinding(SDL_Window* window, WGPUDevice device) : BackendBinding(window, device) {}
 
-  virtual WGPUTextureFormat GetPreferredSwapChainTextureFormat() {
-    if (m_swapChainImpl.userData == nullptr) {
-      CreateSwapChainImpl();
-    }
-    return dawn::native::vulkan::GetNativeSwapChainPreferredFormat(&m_swapChainImpl);
-  }
+//  virtual WGPUTextureFormat GetPreferredSwapChainTextureFormat() {
+//    if (m_swapChainImpl.userData == nullptr) {
+//      CreateSwapChainImpl();
+//    }
+//    return dawn::native::vulkan::GetNativeSwapChainPreferredFormat(&m_swapChainImpl);
+//  }
 
-  uint64_t GetSwapChainImplementation() {
-    if (m_swapChainImpl.userData == nullptr) {
-      CreateSwapChainImpl();
-    }
-    return reinterpret_cast<uint64_t>(&m_swapChainImpl);
-  }
+//  uint64_t GetSwapChainImplementation() {
+//    if (m_swapChainImpl.userData == nullptr) {
+//      CreateSwapChainImpl();
+//    }
+//    return reinterpret_cast<uint64_t>(&m_swapChainImpl);
+//  }
 
-protected:
-  DawnSwapChainImplementation m_swapChainImpl{};
-  virtual void CreateSwapChainImpl() {
-    VkSurfaceKHR surface = VK_NULL_HANDLE;
-    ASSERT(SDL_Vulkan_CreateSurface(m_window, dawn::native::vulkan::GetInstance(m_device), &surface),
-           "Failed to create Vulkan surface: {}", SDL_GetError());
-    m_swapChainImpl = dawn::native::vulkan::CreateNativeSwapChainImpl(m_device, surface);
-  }
+//protected:
+//  DawnSwapChainImplementation m_swapChainImpl{};
+//  virtual void CreateSwapChainImpl() {
+//    VkSurfaceKHR surface = VK_NULL_HANDLE;
+//    ASSERT(SDL_Vulkan_CreateSurface(m_window, dawn::native::vulkan::GetInstance(m_device), &surface),
+//           "Failed to create Vulkan surface: {}", SDL_GetError());
+////    m_swapChainImpl = dawn::native::vulkan::CreateNativeSwapChainImpl(m_device, surface);
+//  }
 };
 
 class XrVulkanBinding : public VulkanBinding {
@@ -130,14 +129,14 @@ public:
     buildXrGraphicsBinding();
   }
 
-  WGPUTextureFormat GetPreferredSwapChainTextureFormat() override {
-    if (m_swapChainImpl.userData == nullptr) {
-      CreateSwapChainImpl();
-    }
-
-    xr::XrSwapChainImplVk* impl = reinterpret_cast<xr::XrSwapChainImplVk*>(m_swapChainImpl.userData);
-    return static_cast<WGPUTextureFormat>(impl->GetPreferredFormat());
-  }
+//  WGPUTextureFormat GetPreferredSwapChainTextureFormat() override {
+//    if (m_swapChainImpl.userData == nullptr) {
+//      CreateSwapChainImpl();
+//    }
+//
+//    xr::XrSwapChainImplVk* impl = reinterpret_cast<xr::XrSwapChainImplVk*>(m_swapChainImpl.userData);
+//    return static_cast<WGPUTextureFormat>(impl->GetPreferredFormat());
+//  }
 
 private:
   void buildXrGraphicsBinding(){
@@ -154,14 +153,14 @@ private:
     m_xrGraphicsBinding.queueIndex = 0;
   }
 
-  void CreateSwapChainImpl() override {
+//  void CreateSwapChainImpl() override {
 //    VkSurfaceKHR surface = VK_NULL_HANDLE;
 //    ASSERT(SDL_Vulkan_CreateSurface(m_window, dawn::native::vulkan::GetInstance(m_device), &surface),
 //           "Failed to create Vulkan surface: {}", SDL_GetError());
 //    m_swapChainImpl = dawn::native::vulkan::CreateNativeSwapChainImpl(m_device, surface);
-    m_swapChainImpl = CreateSwapChainImplementation(new xr::XrSwapChainImplVk());
-    m_swapChainImpl.textureUsage = WGPUTextureUsage_RenderAttachment;
-  }
+//    m_swapChainImpl = CreateSwapChainImplementation(new xr::XrSwapChainImplVk());
+//    m_swapChainImpl.textureUsage = WGPUTextureUsage_RenderAttachment;
+//  }
 };
 
 BackendBinding* CreateVulkanBinding(SDL_Window* window, WGPUDevice device) {

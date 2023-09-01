@@ -38,7 +38,7 @@ add_library(aurora STATIC
     lib/dolphin/GXVert.cpp
     lib/dolphin/vi.cpp
     lib/xr/xr.cpp
-    lib/xr/vulkan/XrSwapChainImplVk.cpp
+#    lib/xr/vulkan/XrSwapChainImplVk.cpp
     lib/xr/XrVulkanFunctions.cpp)
 add_library(aurora::aurora ALIAS aurora)
 

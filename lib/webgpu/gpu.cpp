@@ -96,7 +96,7 @@ TextureWithSampler create_render_texture(GraphicsConfig graphicsConfig, bool mul
       .addressModeW = wgpu::AddressMode::ClampToEdge,
       .magFilter = wgpu::FilterMode::Linear,
       .minFilter = wgpu::FilterMode::Linear,
-      .mipmapFilter = wgpu::FilterMode::Linear,
+      .mipmapFilter = wgpu::MipmapFilterMode::Linear,
       .lodMinClamp = 0.f,
       .lodMaxClamp = 1000.f,
       .maxAnisotropy = 1,
@@ -145,7 +145,7 @@ static TextureWithSampler create_depth_texture(GraphicsConfig graphicsConfig) {
       .addressModeW = wgpu::AddressMode::ClampToEdge,
       .magFilter = wgpu::FilterMode::Linear,
       .minFilter = wgpu::FilterMode::Linear,
-      .mipmapFilter = wgpu::FilterMode::Linear,
+      .mipmapFilter = wgpu::MipmapFilterMode::Linear,
       .lodMinClamp = 0.f,
       .lodMaxClamp = 1000.f,
       .maxAnisotropy = 1,
@@ -350,29 +350,27 @@ static wgpu::BackendType to_wgpu_backend(AuroraBackend backend) {
 // Non VR (when useMirrorWindow is false)
 void create_graphicsconfig(utils::BackendBinding& backendBinding, bool useMirrorWindow) {
 #if WEBGPU_DAWN
-  auto swapChainFormat = static_cast<wgpu::TextureFormat>(backendBinding.GetPreferredSwapChainTextureFormat());
+//  auto swapChainFormat = static_cast<wgpu::TextureFormat>(backendBinding.GetPreferredSwapChainTextureFormat());
+
 #else
   auto swapChainFormat = g_surface.GetPreferredFormat(g_adapter);
 #endif
-  if (swapChainFormat == wgpu::TextureFormat::RGBA8UnormSrgb) {
-    swapChainFormat = wgpu::TextureFormat::RGBA8Unorm;
-  } else if (swapChainFormat == wgpu::TextureFormat::BGRA8UnormSrgb) {
-    swapChainFormat = wgpu::TextureFormat::BGRA8Unorm;
-  }
-  Log.report(LOG_INFO, FMT_STRING("Using swapchain format {}"), magic_enum::enum_name(swapChainFormat));
+//  if (swapChainFormat == wgpu::TextureFormat::RGBA8UnormSrgb) {
+//    swapChainFormat = wgpu::TextureFormat::RGBA8Unorm;
+//  } else if (swapChainFormat == wgpu::TextureFormat::BGRA8UnormSrgb) {
+//    swapChainFormat = wgpu::TextureFormat::BGRA8Unorm;
+//  }
+//  Log.report(LOG_INFO, FMT_STRING("Using swapchain format {}"), magic_enum::enum_name(swapChainFormat));
   const auto size = window::get_window_size();
 
   auto gc = GraphicsConfig {
       .swapChainDescriptor =
           wgpu::SwapChainDescriptor{
               .usage = wgpu::TextureUsage::RenderAttachment,
-              .format = swapChainFormat,
+              .format = wgpu::TextureFormat::RGBA8Unorm,
               .width = size.fb_width,
               .height = size.fb_height,
               .presentMode = wgpu::PresentMode::Fifo,
-#ifdef WEBGPU_DAWN
-              .implementation = backendBinding.GetSwapChainImplementation(),
-#endif
           },
       .depthFormat = wgpu::TextureFormat::Depth32Float, .msaaSamples = g_config.msaa,
       .textureAnisotropy = g_config.maxTextureAnisotropy,
@@ -390,12 +388,12 @@ void create_graphicsconfig(utils::BackendBinding& backendBinding, bool useMirror
 // For VR
 void create_xr_graphicsconfig(utils::BackendBinding& backendBinding) {
 #if WEBGPU_DAWN
-  auto swapChainFormat = static_cast<wgpu::TextureFormat>(backendBinding.GetPreferredSwapChainTextureFormat());
+//  auto swapChainFormat = static_cast<wgpu::TextureFormat>(backendBinding.GetPreferredSwapChainTextureFormat());
 #else
   auto swapChainFormat = g_surface.GetPreferredFormat(g_adapter);
 #endif
 
-  Log.report(LOG_INFO, FMT_STRING("(OPENXR) Using swapchain format {}"), magic_enum::enum_name(swapChainFormat));
+//  Log.report(LOG_INFO, FMT_STRING("(OPENXR) Using swapchain format {}"), magic_enum::enum_name(swapChainFormat));
 
   std::vector<RenderViewType> types {OPENXR_LEFT, OPENXR_RIGHT};
 
@@ -412,13 +410,10 @@ void create_xr_graphicsconfig(utils::BackendBinding& backendBinding) {
         .swapChainDescriptor =
             wgpu::SwapChainDescriptor{
                 .usage = wgpu::TextureUsage::RenderAttachment,
-                .format = swapChainFormat,
+                .format = wgpu::TextureFormat::RGBA8Unorm,
                 .width = view.recommendedImageRectWidth,
                 .height = view.recommendedImageRectHeight,
                 .presentMode = wgpu::PresentMode::Fifo,
-#ifdef WEBGPU_DAWN
-                .implementation = backendBinding.GetSwapChainImplementation(),
-#endif
             },
         .depthFormat = wgpu::TextureFormat::Depth32Float, .msaaSamples = g_config.msaa,
         .textureAnisotropy = g_config.maxTextureAnisotropy,
@@ -453,10 +448,12 @@ bool initialize(AuroraBackend auroraBackend) {
   }
 #endif
   Log.report(LOG_INFO, FMT_STRING("Attempting to initialize {}"), magic_enum::enum_name(backend));
-#if 0
-  // D3D12's debug layer is very slow
-  g_dawnInstance->EnableBackendValidation(backend != WGPUBackendType::D3D12);
-#endif
+
+// Commented this out. Seems to screw up the rest of the #ifdef WEBGPU_DAWN statements at least according to Clion
+//#if 0
+//  // D3D12's debug layer is very slow
+//  g_dawnInstance->EnableBackendValidation(backend != WGPUBackendType::D3D12);
+//#endif
 
 #ifdef WEBGPU_DAWN
   SDL_Window* window = window::get_sdl_window();
@@ -577,9 +574,9 @@ bool initialize(AuroraBackend auroraBackend) {
       "disable_symbol_renaming",
       /* clang-format on */
     };
-    wgpu::DawnTogglesDeviceDescriptor togglesDescriptor{};
-    togglesDescriptor.forceEnabledTogglesCount = enableToggles.size();
-    togglesDescriptor.forceEnabledToggles = enableToggles.data();
+    wgpu::DawnTogglesDescriptor togglesDescriptor{};
+    togglesDescriptor.enabledTogglesCount = enableToggles.size();
+    togglesDescriptor.enabledToggles = enableToggles.data();
 #endif
     const wgpu::DeviceDescriptor deviceDescriptor{
 #ifdef WEBGPU_DAWN
@@ -708,8 +705,7 @@ void resize_swapchain(RenderView& renderView, uint32_t width, uint32_t height, b
   renderView.graphicsConfig.swapChainDescriptor.height = height;
 
 #ifdef WEBGPU_DAWN
-  renderView.swapChain.Configure(renderView.graphicsConfig.swapChainDescriptor.format, renderView.graphicsConfig.swapChainDescriptor.usage, width,
-                        height);
+  renderView.swapChain = g_device.CreateSwapChain(g_surface, &renderView.graphicsConfig.swapChainDescriptor);
 #else
   g_swapChain = g_device.CreateSwapChain(g_surface, &g_graphicsConfig.swapChainDescriptor);
 #endif

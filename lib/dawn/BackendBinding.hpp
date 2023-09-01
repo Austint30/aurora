@@ -14,8 +14,8 @@ class BackendBinding {
 public:
   virtual ~BackendBinding() = default;
 
-  virtual uint64_t GetSwapChainImplementation() = 0;
-  virtual WGPUTextureFormat GetPreferredSwapChainTextureFormat() = 0;
+//  virtual uint64_t GetSwapChainImplementation() = 0;
+//  virtual WGPUTextureFormat GetPreferredSwapChainTextureFormat() = 0;
 
   const XrGraphicsBindingVulkan2KHR* GetXrGraphicsBinding() const {
     return &m_xrGraphicsBinding;
